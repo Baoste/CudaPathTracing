@@ -101,6 +101,7 @@
     <ClInclude Include="AABB.cuh" />
     <ClInclude Include="BVH.cuh" />
     <ClInclude Include="Camera.cuh" />
+    <ClInclude Include="Cloth.cuh" />
     <ClInclude Include="imgui\imconfig.h" />
     <ClInclude Include="imgui\imgui.h" />
     <ClInclude Include="imgui\imgui_impl_glfw.h" />

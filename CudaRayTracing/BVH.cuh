@@ -20,25 +20,12 @@ __device__ inline unsigned int expandBits(unsigned int v)
 
 // Calculates a 30-bit Morton code for the
 // given 3D point located within the unit cube [0,1].
-__device__ inline unsigned int morton3D(double3 v, unsigned int size)
+__device__ inline unsigned int morton3D(double3 v)
 {
     // normalize
     double3 sceneMin = make_double3(-4.0, -1.0, -4.0);
     double3 sceneMax = make_double3(4.0, 4.0, 4.0);
     double3 normalized;
-
-    //for (int i = 0; i < size; i++) {
-    //    sceneMin = make_double3(
-    //        fmin(sceneMin.x, v.x),
-    //        fmin(sceneMin.y, v.y),
-    //        fmin(sceneMin.z, v.z)
-    //    );
-    //    sceneMax = make_double3(
-    //        fmax(sceneMax.x, v.x),
-    //        fmax(sceneMax.y, v.y),
-    //        fmax(sceneMax.z, v.z)
-    //    );
-    //}
 
     normalized.x = (v.x - sceneMin.x) / (sceneMax.x - sceneMin.x);
     normalized.y = (v.y - sceneMin.y) / (sceneMax.y - sceneMin.y);
@@ -51,6 +38,7 @@ __device__ inline unsigned int morton3D(double3 v, unsigned int size)
     unsigned int xx = expandBits((unsigned int)x);
     unsigned int yy = expandBits((unsigned int)y);
     unsigned int zz = expandBits((unsigned int)z);
+    // printf("Morton code for (%f, %f, %f) = %u\n", normalized.x, normalized.y, normalized.z, xx * 4 + yy * 2 + zz);
     return xx * 4 + yy * 2 + zz;
 }
 
@@ -202,7 +190,6 @@ __device__ inline void generateHierarchy(Hittable** d_objs, Node* leafNodes, Nod
     // Construct leaf nodes.
     // Note: This step can be avoided by storing
     // the tree in a slightly different way.
-
     for (int idx = 0; idx < num; idx++)
     {
         leafNodes[idx].isLeaf = true;
@@ -307,6 +294,7 @@ __device__ inline void generateHierarchy(Hittable** d_objs, Node* leafNodes, Nod
             p_max = mMax(p_max, ++p);
             cur = cur->childB;
         }
+        //printf("max = %d\n", p_max);
     }
     printf("max = %d\n", p_max);
 

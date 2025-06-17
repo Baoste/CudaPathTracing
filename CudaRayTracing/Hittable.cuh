@@ -152,7 +152,6 @@ public:
     __host__ __device__ Hittable(const Light& l)
         : center(make_double3(l.center.x, l.center.y, l.center.z)), type(ObjectType::LIGHT), light(l)
     {
-        //TODO Need to fix, only surpport down-shoot light for now
         double3 N = Unit(l.normal);
         double3 T = fabs(N.x) > 0.9 ?
             Unit(Cross(make_double3(0, 1, 0), N)) :
