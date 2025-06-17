@@ -10,6 +10,10 @@ public:
     double metallic;
 
 public:
+    __host__ __device__ Material()
+        : color(make_double3(0.0, 0.0, 0.0)), roughness(0.5), metallic(0.0)
+    {
+    }
     __host__ __device__ Material(const double3& _color)
         : color(_color), roughness(0.5), metallic(0.0)
     {

@@ -24,7 +24,7 @@ public:
     {
     }
     __host__ __device__ ~Sphere() {}
-    __device__ inline bool hit(const Ray& ray, HitRecord& record, double t_min, double t_max) const
+    __device__ inline bool hit(const Ray& ray, HitRecord& record, double t_min, double t_max)
     {
         double a = Dot(ray.direction, ray.direction);
         double b = Dot(ray.direction, ray.origin - center);
@@ -44,7 +44,7 @@ public:
 
         record.hitPos = ray.at(t);
         record.t = t;
-        record.material = material;
+        record.material = &material;
         double3 outwardNoraml = (record.hitPos - center) / radius;
         record.setFaceNormal(ray, outwardNoraml);
 
@@ -68,7 +68,7 @@ public:
         normal = Unit(Cross(p1 - p0, p2 - p0));
     }
     __host__ __device__ ~Triangle() {}
-    __device__ inline bool hit(const Ray& ray, HitRecord& record, double t_min, double t_max) const
+    __device__ inline bool hit(const Ray& ray, HitRecord& record, double t_min, double t_max)
     {
         const double EPSILON = 1e-8;
 
@@ -98,7 +98,7 @@ public:
 
         record.hitPos = ray.at(t);
         record.t = t;
-        record.material = material;
+        record.material = &material;
         double3 outwardNoraml = Unit(Cross(edge1, edge2));
         record.setFaceNormal(ray, outwardNoraml);
 
@@ -121,7 +121,7 @@ public:
     {
     }
     __host__ __device__ ~Light() {}
-    __device__ inline bool hit(const Ray& ray, HitRecord& record, double t_min, double t_max) const
+    __device__ inline bool hit(const Ray& ray, HitRecord& record, double t_min, double t_max)
     {
         return false;
     }
@@ -153,7 +153,33 @@ public:
         : center(make_double3(l.center.x, l.center.y, l.center.z)), type(ObjectType::LIGHT), light(l)
     {
         //TODO Need to fix, only surpport down-shoot light for now
-        aabb = AABB(l.center - make_double3(l.width / 2.0, 0, l.height / 2.0), l.center + make_double3(-l.width / 2.0, 0, -l.height / 2.0)).pad();
+        double3 N = Unit(l.normal);
+        double3 T = fabs(N.x) > 0.9 ?
+            Unit(Cross(make_double3(0, 1, 0), N)) :
+            Unit(Cross(make_double3(1, 0, 0), N));
+        double3 B = Unit(Cross(N, T));
+        // 构造四个角点（也可以8个点扩展成体积）
+        double3 corners[4] = {
+            l.center + T * (l.width / 2) + B * (l.height / 2),
+            l.center + T * (l.width / 2) + B * (-l.height / 2),
+            l.center + T * (-l.width / 2) + B * (l.height / 2),
+            l.center + T * (-l.width / 2) + B * (-l.height / 2)
+        };
+
+        // 构造 AABB（点集取 min/max）
+        double3 aabbMin = corners[0];
+        double3 aabbMax = corners[0];
+        for (int i = 1; i < 4; ++i) 
+        {
+            aabbMin.x = mMin(aabbMin.x, corners[i].x);
+            aabbMin.y = mMin(aabbMin.y, corners[i].y);
+            aabbMin.z = mMin(aabbMin.z, corners[i].z);
+            aabbMax.x = mMax(aabbMax.x, corners[i].x);
+            aabbMax.y = mMax(aabbMax.y, corners[i].y);
+            aabbMax.z = mMax(aabbMax.z, corners[i].z);
+        }
+
+        aabb = AABB(aabbMin, aabbMax).pad();
     }
     // Triangle constructor
     __host__ __device__ Hittable(const Triangle& t)
@@ -165,7 +191,7 @@ public:
     }
 
     __host__ __device__ ~Hittable() {}
-    __device__ inline bool hit(const Ray& ray, HitRecord& record, double t_min, double t_max) const
+    __device__ inline bool hit(const Ray& ray, HitRecord& record, double t_min, double t_max)
     {
         switch (type)
         {

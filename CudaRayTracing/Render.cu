@@ -3,7 +3,8 @@
 
 #define CLAMP01(x) ((x) > 1.0 ? 1.0 : ((x) < 0.0 ? 0.0 : (x)))
 
-__global__ void render(unsigned char* cb, const Camera* camera, unsigned int* lightsIndex, Hittable** objs, Node* internalNodes, int lightsCount, int max_x, int max_y, int sampleCount, double t)
+__global__ void render(unsigned char* cb, const Camera* camera, unsigned int* lightsIndex, Hittable** objs, Node* internalNodes, int lightsCount, 
+    int max_x, int max_y, int sampleCount, double roughness, double metallic, double t)
 {
     int i = threadIdx.x + blockIdx.x * blockDim.x;
     int j = threadIdx.y + blockIdx.y * blockDim.y;
@@ -51,18 +52,21 @@ __global__ void render(unsigned char* cb, const Camera* camera, unsigned int* li
                 double lightHeight = light.width;
                 double pdfLight = 1.0 / (lightWidth * lightHeight);
                 double3 lightIntensity = light.color;
-                double3 lightCenter = light.center + make_double3(2.0 * cos(t), 0, 0);
-                double3 lightNormal = light.normal;
+                double3 lightCenter = light.center + make_double3(2.0 * cos((k + 1.0) * t), 0, 0);
+                double3 lightNormal = Unit(light.normal);
                 // sample from the light source
-                double3 lightPos = lightCenter + make_double3(
-                    (curand_uniform_double(&state) - 0.5) * lightWidth,
-                    0.0,
-                    (curand_uniform_double(&state) - 0.5) * lightHeight
-                );
+                double3 T = fabs(lightNormal.x) > 0.9 ? Unit(Cross(make_double3(0, 1, 0), lightNormal)) : Unit(Cross(make_double3(1, 0, 0), lightNormal));
+                // B = N ¡Á T
+                double3 B = Unit(Cross(lightNormal, T));
+                double3 lightPos = lightCenter +
+                    (curand_uniform_double(&state) - 0.5) * lightWidth * T +
+                    (curand_uniform_double(&state) - 0.5) * lightHeight * B;
                 direction = Unit(lightPos - record.hitPos);
                 Ray sampleRay = Ray(record.hitPos, direction, 0.0);
                 if (Dot(direction, record.normal) > 0.0 && !traverseIterative(internalNodes, objs, sampleRay, tmp))
                 {
+                    record.material->roughness = roughness;
+                    record.material->metallic = metallic;
                     double3 colorLight = lightIntensity * record.getFr(ray, direction) * Dot(direction, record.normal) * Dot(-direction, lightNormal) / SquaredLength(lightPos - record.hitPos) / pdfLight;
                     radiance += throughput * colorLight;
                 }
@@ -91,6 +95,8 @@ __global__ void render(unsigned char* cb, const Camera* camera, unsigned int* li
                 sin(2.0 * PI * r2) * sinTheta * v +
                 cosTheta * w;
             double pdf = cosTheta / PI;
+            record.material->roughness = roughness;
+            record.material->metallic = metallic;
             throughput *= record.getFr(ray, direction) * Dot(direction, record.normal) / pdf / P_RR;
             // throughput *= fr * Dot(direction, record.normal) / pdf;
 

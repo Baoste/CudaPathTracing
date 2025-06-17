@@ -23,22 +23,26 @@ __global__ inline void allocateOnDevice(Hittable** d_b, MeshTriangle* d_triangle
 {
     *d_b = (Hittable*)malloc(size * sizeof(Hittable));  // raw allocation
 
-    // œ‘ Ω placement new
-    new (&(*d_b)[0]) Hittable(Light(make_double3(0, 4.0, 0), 2.0, 2.0, make_double3(0, -1.0, 0), make_double3(10.0, 10.0, 10.0)));
-    new (&(*d_b)[1]) Hittable(Triangle(make_double3(-100.0, 0.0, -10.0), make_double3(-100.0, 0.0, 10.0), make_double3(100.0, 0.0, -10.0), make_double3(0.8, 0.8, 0.8)));
-    new (&(*d_b)[2]) Hittable(Triangle(make_double3(100.0, 0.0, -10.0), make_double3(-100.0, 0.0, 10.0), make_double3(100.0, 0.0, 10.0), make_double3(0.8, 0.8, 0.8)));
-    for (size_t i = 0; i < size - 5; i++)
+    // lights
+    new (&(*d_b)[0]) Hittable(Light(make_double3(0, 4.0, 0), 2.0, 2.0, make_double3(0, -1.0, 0), make_double3(5.0, 1.0, 1.0)));
+    new (&(*d_b)[1]) Hittable(Light(make_double3(0.0, 4.0, 4.0), 1.0, 1.0, make_double3(0.0, -1.0, -1.0), make_double3(1.0, 10.0, 10.0)));
+    // index of the light source
+    d_lightsIndex[0] = 0;
+    d_lightsIndex[1] = 1;
+
+    // floor
+    new (&(*d_b)[2]) Hittable(Triangle(make_double3(-100.0, 0.0, -10.0), make_double3(-100.0, 0.0, 10.0), make_double3(100.0, 0.0, -10.0), make_double3(0.8, 0.8, 0.8)));
+    new (&(*d_b)[3]) Hittable(Triangle(make_double3(100.0, 0.0, -10.0), make_double3(-100.0, 0.0, 10.0), make_double3(100.0, 0.0, 10.0), make_double3(0.8, 0.8, 0.8)));
+    // obj
+    for (size_t i = 0; i < size - 4; i++)
     {
-        new (&(*d_b)[i + 5]) Hittable(Triangle(
+        new (&(*d_b)[i + 4]) Hittable(Triangle(
             d_triangles[i].p0,
             d_triangles[i].p1,
             d_triangles[i].p2,
-            make_double3(0.8, 0.2, 0.3)
+            make_double3(0.8, 0.8, 0.8)
         ));
     }
-
-    // index of the light source
-    d_lightsIndex[0] = 0;
 
     for (size_t i = 0; i < size; i++)
     {
@@ -47,7 +51,7 @@ __global__ inline void allocateOnDevice(Hittable** d_b, MeshTriangle* d_triangle
     }
 }
 
-__global__ inline void allocate(Hittable** d_objs, Node* leafNodes, Node* internalNodes, unsigned int* sortedMortonCodes, unsigned int* sortedObjectIDs, int objsCount)
+__global__ inline void buildBVH(Hittable** d_objs, Node* leafNodes, Node* internalNodes, unsigned int* sortedMortonCodes, unsigned int* sortedObjectIDs, int objsCount)
 {
     generateHierarchy(d_objs, leafNodes, internalNodes, sortedMortonCodes, sortedObjectIDs, objsCount);
 }
@@ -91,7 +95,7 @@ public:
         cudaMemcpy(d_triangles, mesh.triangles.data(), num * sizeof(MeshTriangle), cudaMemcpyHostToDevice);
 
         objsCount = 2 + num;
-        lightsCount = 1;
+        lightsCount = 2;
         allCount = objsCount + lightsCount;
         cudaMalloc((void**)&d_objs, sizeof(Hittable**));
         cudaMalloc((void**)&d_lightsIndex, lightsCount * sizeof(unsigned int));
@@ -109,7 +113,7 @@ public:
 
         cudaMalloc((void**)&internalNodes, (allCount - 1) * sizeof(Node));
         cudaMalloc((void**)&leafNodes, allCount * sizeof(Node));
-        allocate << < 1, 1 >> > (d_objs, leafNodes, internalNodes, d_mortons, d_objIdx, allCount);
+        buildBVH << < 1, 1 >> > (d_objs, leafNodes, internalNodes, d_mortons, d_objIdx, allCount);
         checkCudaErrors(cudaDeviceSynchronize());
     }
 };

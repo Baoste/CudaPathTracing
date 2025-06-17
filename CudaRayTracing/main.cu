@@ -44,7 +44,7 @@ int main()
                     std::cout << "Rendering " << app.sampleCount << " sample count..." << std::endl;
                     t = preTime;
                 }
-                render <<< blocks, threads >>> (d_cb, d_camera, scene.d_lightsIndex, scene.d_objs, scene.internalNodes, scene.lightsCount, nx, ny, sampleCount, t);
+                render <<< blocks, threads >>> (d_cb, d_camera, scene.d_lightsIndex, scene.d_objs, scene.internalNodes, scene.lightsCount, nx, ny, sampleCount, app.roughness, app.metallic, t);
                 // checkCudaErrors(cudaDeviceSynchronize());
                 cudaMemcpy(app.img, d_cb, app.cb_size, cudaMemcpyDeviceToHost);
             }
