@@ -3,27 +3,7 @@
 
 #define CLAMP01(x) ((x) > 1.0 ? 1.0 : ((x) < 0.0 ? 0.0 : (x)))
 
-__device__ bool isHitAnything(Hittable** objs, int obj_count, const Ray& ray, HitRecord& record)
-{
-    HitRecord tempRec;
-    bool hitAnything = false;
-    double closest = INF;
-
-    for (int i = 0; i < obj_count; i++) 
-    {
-        if ((*objs)[i].hit(ray, tempRec, 0.001, closest)) 
-        {
-            hitAnything = true;
-            closest = tempRec.t;
-            record = tempRec;
-        }
-    }
-
-    return hitAnything;
-}
-
-
-__global__ void render(unsigned char* cb, Camera* camera, Hittable** objs, int obj_count, int max_x, int max_y, double t) 
+__global__ void render(unsigned char* cb, const Camera* camera, unsigned int* lightsIndex, Hittable** objs, Node* internalNodes, int lightsCount, int max_x, int max_y, int sampleCount, double t)
 {
     int i = threadIdx.x + blockIdx.x * blockDim.x;
     int j = threadIdx.y + blockIdx.y * blockDim.y;
@@ -33,11 +13,10 @@ __global__ void render(unsigned char* cb, Camera* camera, Hittable** objs, int o
     
     // random sample
     curandState state;
-    curand_init(123, pixel_index, 0, &state);
+    curand_init(3317, pixel_index, 0, &state);
 
     // path tracing
-    int sampleCount = 500;
-
+   
     // pixel color
     double3 pixelRadience = make_double3(0.0, 0.0, 0.0);
 
@@ -53,39 +32,49 @@ __global__ void render(unsigned char* cb, Camera* camera, Hittable** objs, int o
         // trace the ray
         double3 throughput = make_double3(1.0, 1.0, 1.0);  // ÀÛ³Ë fr * cos¦È / pdf
         double3 radiance = make_double3(0.0, 0.0, 0.0);    // final result
+        // int depth = 0;
         while (true) 
         {
             // if no hit, break
-            if (!isHitAnything(objs, obj_count, ray, record))
+            if (!traverseIterative(internalNodes, objs, ray, record))
             {
                 radiance += throughput * camera->background;
                 break;
             }
 
             // contribution from the light source
-            double lightWidth = 1.0;
-            double lightHeight = 1.0;
-            double pdfLight = 1.0 / (lightWidth * lightHeight);
-            double3 lightCenter = make_double3(cos(t), 4.0, sin(t));
-            double3 lightNormal = make_double3(0.0, -1.0, 0.0);
-            // sample from the light source
-            double3 lightPos = lightCenter + make_double3(
-                (curand_uniform_double(&state) - 0.5) * lightWidth,
-                0.0,
-                (curand_uniform_double(&state) - 0.5) * lightHeight
-            );
-            double3 direction = Unit(lightPos - record.hitPos);
-            ray = Ray(record.hitPos, direction, 0.0);
-            if (Dot(direction, record.normal) > 0.0 && !isHitAnything(objs, obj_count, ray, tmp))
+            double3 direction;
+            for (int k = 0; k < lightsCount; k++)
             {
-                double3 fr = make_double3(10.0, 10.0, 10.0) / PI;
-                double3 colorLight = fr * Dot(direction, record.normal) * Dot(-direction, lightNormal) / SquaredLength(lightPos - record.hitPos) / pdfLight;
-                radiance += throughput * colorLight;
+                Light light = (*objs)[lightsIndex[k]].light;
+                double lightWidth = light.width;
+                double lightHeight = light.width;
+                double pdfLight = 1.0 / (lightWidth * lightHeight);
+                double3 lightIntensity = light.color;
+                double3 lightCenter = light.center + make_double3(2.0 * cos(t), 0, 0);
+                double3 lightNormal = light.normal;
+                // sample from the light source
+                double3 lightPos = lightCenter + make_double3(
+                    (curand_uniform_double(&state) - 0.5) * lightWidth,
+                    0.0,
+                    (curand_uniform_double(&state) - 0.5) * lightHeight
+                );
+                direction = Unit(lightPos - record.hitPos);
+                Ray sampleRay = Ray(record.hitPos, direction, 0.0);
+                if (Dot(direction, record.normal) > 0.0 && !traverseIterative(internalNodes, objs, sampleRay, tmp))
+                {
+                    double3 colorLight = lightIntensity * record.getFr(ray, direction) * Dot(direction, record.normal) * Dot(-direction, lightNormal) / SquaredLength(lightPos - record.hitPos) / pdfLight;
+                    radiance += throughput * colorLight;
+                }
             }
+
             // contribution from other refectors
             // russian roulette
             double P_RR = 0.8;
             if (curand_uniform_double(&state) > P_RR) break;
+
+            // depth
+            // if (depth++ > 2) break;
 
             // randomly choose ONE direction w_i
             // cosine hemisphere sampling
@@ -101,9 +90,9 @@ __global__ void render(unsigned char* cb, Camera* camera, Hittable** objs, int o
             direction = cos(2.0 * PI * r2) * sinTheta * u +
                 sin(2.0 * PI * r2) * sinTheta * v +
                 cosTheta * w;
-            double3 fr = make_double3(0.8, 0.8, 0.8) / PI;
             double pdf = cosTheta / PI;
-            throughput *= fr * Dot(direction, record.normal) / pdf / P_RR;
+            throughput *= record.getFr(ray, direction) * Dot(direction, record.normal) / pdf / P_RR;
+            // throughput *= fr * Dot(direction, record.normal) / pdf;
 
             ray = Ray(record.hitPos, direction, 0.0);
         }

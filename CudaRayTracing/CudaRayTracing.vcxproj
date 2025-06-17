@@ -91,12 +91,18 @@
     <ClCompile Include="Window.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="AABB.cuh" />
+    <ClInclude Include="BVH.cuh" />
     <ClInclude Include="Camera.cuh" />
+    <ClInclude Include="Material.cuh" />
+    <ClInclude Include="ObjLoader.h" />
+    <ClInclude Include="Scene.cuh" />
     <ClInclude Include="HitRecord.cuh" />
     <ClInclude Include="Ray.cuh" />
     <ClInclude Include="Render.cuh" />
     <ClInclude Include="rtmath.cuh" />
     <ClInclude Include="Hittable.cuh" />
+    <ClInclude Include="tiny_obj_loader.h" />
     <ClInclude Include="Window.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

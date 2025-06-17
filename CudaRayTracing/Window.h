@@ -18,6 +18,7 @@ public:
     unsigned char* img;
     size_t cb_size;
     bool paused = false;
+    int sampleCount;
 
 public:
     Window(int w, int h);

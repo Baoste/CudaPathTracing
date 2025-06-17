@@ -5,8 +5,12 @@
 #include "device_launch_parameters.h"
 #include <cmath>
 
-#define INF 999999
+#define INF 999999.0
 #define PI 3.14159265358979323846
+
+#define mMin(a, b) ((a) < (b) ? (a) : (b))
+#define mMax(a, b) ((a) > (b) ? (a) : (b))
+#define mSwap(a, b) { double temp = a; a = b; b = temp; }
 
 __host__ __device__ inline double3 operator+(const double3& v1, const double3& v2) 
 {

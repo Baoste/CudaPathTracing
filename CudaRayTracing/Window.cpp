@@ -7,6 +7,7 @@ Window::Window(int w, int h) : width(w), height(h), tex(0)
     cb_size = 4 * w * h * sizeof(unsigned char);
     img = (unsigned char*)malloc(cb_size);
 
+    sampleCount = 2;
     window = nullptr;
 }
 
@@ -84,6 +85,7 @@ void Window::PollInput()
         {
             paused = !paused;
             spacePressed = true;
+            sampleCount = paused ? 64 : 2;
             std::cout << (paused ? "Paused\n" : "Resumed\n");
         }
     }

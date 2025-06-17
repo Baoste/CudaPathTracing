@@ -4,29 +4,8 @@
 
 #include "Render.cuh"
 #include "Hittable.cuh"
+#include "Scene.cuh"
 
-#define checkCudaErrors(val) check_cuda( (val), #val, __FILE__, __LINE__ )
-
-void check_cuda(cudaError_t result, char const* const func, const char* const file, int const line)
-{
-    if (result)
-    {
-        std::cerr << "CUDA error = " << static_cast<unsigned int>(result) << " at " <<
-            file << ":" << line << " '" << func << "' \n";
-        cudaDeviceReset();
-        exit(99);
-    }
-}
-
-
-__global__ void allocateOnDevice(Hittable** d_b, const size_t size)
-{
-    *d_b = (Hittable*)malloc(size * sizeof(Hittable));  // raw allocation
-
-    // ÏÔÊ½ placement new
-    new (&(*d_b)[0]) Hittable(Sphere(make_double3(0, 0, 0), 1.0));
-    new (&(*d_b)[1]) Hittable(Sphere(make_double3(0, -11, 0), 10.0));
-}
 
 int main()
 {
@@ -45,25 +24,34 @@ int main()
     checkCudaErrors(cudaMalloc((void**)&d_camera, sizeof(Camera)));
     checkCudaErrors(cudaMemcpy(d_camera, &camera, sizeof(Camera), cudaMemcpyHostToDevice));
 
-    Hittable** d_objs;
-    size_t objsCount = 2;
-    cudaMalloc((void**)&d_objs, sizeof(Hittable**));
-    allocateOnDevice <<< 1, 1 >>> (d_objs, objsCount);
+    Scene scene;
+    scene.init();
 
     if (app.Init())
     {
+        bool preStats = false;
+        double preTime = 0;
+        double t = 0;
         while (!app.Close())
         {
             app.PollInput();
-            if (!app.paused)
+            if (!app.paused || app.paused != preStats)
             {
-                double t = (double)glfwGetTime();
-                render <<< blocks, threads >>> (d_cb, d_camera, d_objs, objsCount, nx, ny, t);
-                //checkCudaErrors(cudaDeviceSynchronize());
-                checkCudaErrors(cudaMemcpy(app.img, d_cb, app.cb_size, cudaMemcpyDeviceToHost));
+                t = (double)glfwGetTime();
+                int sampleCount = app.sampleCount;
+                if (app.paused)
+                {
+                    std::cout << "Rendering " << app.sampleCount << " sample count..." << std::endl;
+                    t = preTime;
+                }
+                render <<< blocks, threads >>> (d_cb, d_camera, scene.d_lightsIndex, scene.d_objs, scene.internalNodes, scene.lightsCount, nx, ny, sampleCount, t);
+                // checkCudaErrors(cudaDeviceSynchronize());
+                cudaMemcpy(app.img, d_cb, app.cb_size, cudaMemcpyDeviceToHost);
             }
 
             app.Update();
+            preStats = app.paused;
+            preTime = t;
         }
     }
 
