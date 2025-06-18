@@ -7,6 +7,8 @@
 #include "./imgui/imgui_impl_glfw.h"
 #include "./imgui/imgui_impl_opengl3.h"
 
+#include "Camera.cuh"
+
 class Window
 {
 private:
@@ -17,6 +19,7 @@ private:
     GLuint tex;
 
     bool spacePressed = false;
+    Camera* camera;
 
 public:
     unsigned char* img;
@@ -29,11 +32,11 @@ public:
     double metallic = 0.0f;
 
 public:
-    Window(int w, int h);
+    Window(int w, int h, Camera* _camera);
     ~Window();
     bool Init();
     bool Close();
     void Update();
-    void PollInput();
+    bool PollInput();
 };
 

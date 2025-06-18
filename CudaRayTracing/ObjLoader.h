@@ -19,12 +19,24 @@ class Mesh
 public:
     std::vector<MeshTriangle> triangles;
     Mesh() = default;
+
+public:
     // Load mesh from a file
     bool loadFromFile(const std::string& filename) 
     {
         triangles.clear();
         loadMesh(filename, triangles);
         return !triangles.empty();
+    }
+
+    void transform(double3 position)
+    {
+        for (auto& triangle : triangles)
+        {
+            triangle.p0 += position;
+            triangle.p1 += position;
+            triangle.p2 += position;
+        }
     }
 
 private:

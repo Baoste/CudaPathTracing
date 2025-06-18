@@ -10,43 +10,56 @@
 #include "rtmath.cuh"
 
 
-const int division = 10;
+const int division = 50;
 const int numParticles = division * division;
+const int numPartAxis = 3 * numParticles;
 
 class Cloth
 {
 public:
-    double X[numParticles * 3];  // positions
-    double V[numParticles * 3];  // velocities
-    double F[numParticles * 3];  // forces
-    double M[numParticles * 3][numParticles * 3];  // mass
-    double L[numParticles][numParticles];  // Length
-    int edgeIdx[(6 * division * division - 12 * division + 6) * 2];  // springs between particles
-    int triangleIdx[6 * (division - 1) * (division - 1)];  // indices of particles forming triangles
+    double width;  // cloth width
+    double3 position;
+    double simTime;
+    double dt;
+
+    double* X = new double[numPartAxis];  // positions
+    double* V = new double[numPartAxis];  // velocities
+    double* F = new double[numPartAxis];  // forces
+    double* M = new double[numPartAxis * numPartAxis];    // mass field
+    double* L = new double[numParticles * numParticles];  // Length
+    int* edgeIdx = new int[(6 * division * division - 12 * division + 6) * 2];  // springs between particles
+    int* triangleIdx = new int[6 * (division - 1) * (division - 1)];  // indices of particles forming triangles
+
+public:
+    Cloth(double _width, double3 _position) : width(_width), position(_position)
+    {
+        simTime = 0.0;
+        dt = 0.001;
+    }
 
 public:
     void initialize() 
     {
         // init positions
-        double dl = 4.0 / division;
-        double dm = 1.0 / numParticles;
-        for (int i = 0; i < numParticles * 3; i++)
+        double dl = width / division;
+        double dm = 0.01;
+        for (int i = 0; i < numPartAxis; i++)
         {
             V[i] = 0.0;
-            for (int j = 0; j < numParticles * 3; j++)
+            for (int j = 0; j < numPartAxis; j++)
             {
-                M[i][j] = 0.0;
+                M[i * numPartAxis + j] = 0.0;
             }
         }
         for (int i = 0; i < numParticles; i++)
         {
-            X[i * 3 + 0] = -2.0 + (i % division) * dl;
-            X[i * 3 + 1] = 3.7;
-            X[i * 3 + 2] = 2.0 - (i / division) * dl;
+            X[i * 3 + 0] = -width / 2.0 + (i % division) * dl + position.x;
+            X[i * 3 + 1] = position.y;
+            X[i * 3 + 2] = width / 2.0 - (i / division) * dl + position.z;
 
-            M[i * 3 + 0][i * 3 + 0] = 1.0 / dm;
-            M[i * 3 + 1][i * 3 + 1] = 1.0 / dm;
-            M[i * 3 + 2][i * 3 + 2] = 1.0 / dm;
+            M[(i * 3 + 0) * numPartAxis + (i * 3 + 0)] = 1.0 / dm;
+            M[(i * 3 + 1) * numPartAxis + (i * 3 + 1)] = 1.0 / dm;
+            M[(i * 3 + 2) * numPartAxis + (i * 3 + 2)] = 1.0 / dm;
         }
 
         // init triangles
@@ -156,13 +169,19 @@ public:
             double dy = X[3 * j + 1] - X[3 * i + 1];
             double dz = X[3 * j + 2] - X[3 * i + 2];
             double restLen = sqrt(dx * dx + dy * dy + dz * dz);
-            L[i][j] = restLen;
+            L[i * numParticles + j] = restLen;
         }
+
+        //for (size_t i = 0; i < (6 * division * division - 12 * division + 6); i++)
+        //{
+        //    printf("(%d, %d)\n", edgeIdx[2 * i], edgeIdx[2 * i + 1]);
+        //}
     }
 
     void Update()
     {
-        double dt = 0.001;
+        simTime += dt;
+
         for (size_t i = 0; i < numParticles * 3; i++)
         {
             F[i] = 0.0;
@@ -175,7 +194,7 @@ public:
             double3 x_e = make_double3(X[3 * e], X[3 * e + 1], X[3 * e + 2]);
             double3 x_ei = x_i - x_e;
             double ei_norm = Length(x_ei);
-            double3 force = -1000.0 * (ei_norm - L[i][e]) * x_ei / ei_norm;
+            double3 force = -1000.0 * (ei_norm - L[i * numParticles + e]) * x_ei / ei_norm;
             F[3 * i + 0] += force.x;
             F[3 * i + 1] += force.y;
             F[3 * i + 2] += force.z;
@@ -190,7 +209,7 @@ public:
         {
             for (int j = 0; j < numParticles * 3; ++j)
             {
-                V[i] += dt * (M[i][j] * F[j]);  // mass_field[i][j] @ f[j]
+                V[i] += dt * (M[i * numPartAxis + j] * F[j]);  // mass_field[i][j] @ f[j]
             }
         }
 

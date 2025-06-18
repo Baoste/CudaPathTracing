@@ -8,7 +8,7 @@ public:
 
 public:
     __host__ __device__ AABB() : min(make_double3(INF, INF, INF)), max(make_double3(-INF, -INF, -INF)) {}
-    __host__ __device__ AABB(const double3& p0, const double3& p1)
+    __host__ __device__ AABB(const double3 p0, const double3 p1)
     {
         min.x = mMin(p0.x, p1.x);
         min.y = mMin(p0.y, p1.y);

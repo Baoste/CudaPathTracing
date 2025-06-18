@@ -1,9 +1,10 @@
 
-#include "Window.h"
 #include <iostream>
+#include "Window.cuh"
 
-Window::Window(int w, int h) : width(w), height(h), tex(0)
+Window::Window(int w, int h, Camera* _camera) : width(w), height(h), tex(0)
 {
+    camera = _camera;
     cb_size = 4 * w * h * sizeof(unsigned char);
     img = (unsigned char*)malloc(cb_size);
 
@@ -115,7 +116,7 @@ void Window::Update()
 }
 
 
-void Window::PollInput()
+bool Window::PollInput()
 {
     glfwPollEvents();
 
@@ -127,11 +128,41 @@ void Window::PollInput()
             spacePressed = true;
             sampleCount = paused ? 64 : 1;
             std::cout << (paused ? "Paused\n" : "Resumed\n");
+            return true;
         }
     }
     else
     {
         spacePressed = false;
     }
+
+    bool moved = false;
+    double moveSpeed = 1.0;
+    double deltaTime = 0.1;
+    double phi = 0.0;
+    double theta = 0.0;
+    double x = 0.0;
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
+        theta -= moveSpeed * deltaTime;
+        moved = true;
+    }
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
+        theta += moveSpeed * deltaTime;
+        moved = true;
+    }
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
+        phi -= moveSpeed * deltaTime;
+        moved = true;
+    }
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
+        phi += moveSpeed * deltaTime;
+        moved = true;
+    }
+    if (moved)
+    {
+        camera->move(phi, theta, x);
+        return true;
+    }
+    return false;
 }
 

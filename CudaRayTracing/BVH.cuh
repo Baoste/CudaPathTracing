@@ -51,6 +51,7 @@ struct Node
     Node* childB = NULL;
 };
 
+// checks if the ray intersects the AABB
 __device__ inline bool checkOverlap(const Ray& ray, const AABB& aabb, double t_min, double t_max)
 {
     const double3 invD = make_double3(
@@ -296,7 +297,7 @@ __device__ inline void generateHierarchy(Hittable** d_objs, Node* leafNodes, Nod
         }
         //printf("max = %d\n", p_max);
     }
-    printf("max = %d\n", p_max);
+    //printf("max = %d\n", p_max);
 
 }
 

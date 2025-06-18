@@ -19,8 +19,8 @@ public:
         : center(make_double3(0.0, 0.0, 0.0)), radius(1.0), material(make_double3(1.0, 1.0, 1.0))
     {
     }
-    __host__ __device__ Sphere(const double3& _center, double _radius, double3 color)
-        : center(_center), radius(_radius), material(color)
+    __host__ __device__ Sphere(const double3 _center, double _radius, double3 color, bool glass = false)
+        : center(_center), radius(_radius), material(color, glass)
     {
     }
     __host__ __device__ ~Sphere() {}
@@ -61,8 +61,8 @@ public:
     Material material;
 
 public:
-    __host__ __device__ Triangle(const double3& _p0, const double3& _p1, const double3& _p2, const double3& color)
-        : p0(_p0), p1(_p1), p2(_p2), material(color)
+    __host__ __device__ Triangle(const double3 _p0, const double3 _p1, const double3 _p2, const double3 color, bool glass = false)
+        : p0(_p0), p1(_p1), p2(_p2), material(color, glass)
     {
         center = (p0 + p1 + p2) / 3.0;
         normal = Unit(Cross(p1 - p0, p2 - p0));
@@ -113,16 +113,47 @@ public:
     double width;
     double height;
     double3 normal;
+    double3 edgeU;
+    double3 edgeV;
     Color color;
+    bool visible;
 
 public:
-    __host__ __device__ Light(double3 _center, double _width, double _height, double3 _normal, double3 _color)
-        : center(_center), width(_width), height(_height), normal(_normal), color(_color)
+    __host__ __device__ Light(double3 _center, double _width, double _height, double3 _normal, double3 _color, bool _visible = false)
+        : center(_center), width(_width), height(_height), normal(_normal), color(_color), visible(_visible)
     {
+        normal = Unit(normal);
+        edgeU = fabs(normal.x) > 0.9 ? Unit(Cross(make_double3(0, 1, 0), normal)) : Unit(Cross(make_double3(1, 0, 0), normal));
+        edgeV = Unit(Cross(normal, edgeU));
     }
     __host__ __device__ ~Light() {}
     __device__ inline bool hit(const Ray& ray, HitRecord& record, double t_min, double t_max)
     {
+        if (!visible)
+            return false;
+
+        double denom = Dot(ray.direction, normal);
+        // parallel or back face
+        if (fabs(denom) < 1e-6)
+            return false;
+        double t = Dot(center - ray.origin, normal) / denom;
+        // back face or far away
+        if (t < 0)
+            return false;
+
+        double3 hitPoint = ray.at(t);
+        double3 diff = hitPoint - center;
+        double u = Dot(diff, edgeU);
+        double v = Dot(diff, edgeV);
+        if (fabs(u) <= width / 2.0 && fabs(v) <= height / 2.0)
+        {
+            record.hitPos = hitPoint;
+            record.t = t;
+            record.material = NULL;
+            double3 outwardNoraml = normal;
+            record.setFaceNormal(ray, outwardNoraml);
+            return true;
+        }
         return false;
     }
 };

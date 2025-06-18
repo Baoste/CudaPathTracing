@@ -1,6 +1,6 @@
 
 #include <iostream>
-#include "Window.h"
+#include "Window.cuh"
 
 #include "Render.cuh"
 #include "Hittable.cuh"
@@ -14,19 +14,19 @@ int main()
     
     dim3 threads(8, 8);
     dim3 blocks((nx + 7) / 8, (ny + 7) / 8);
-
-    Window app(nx, ny);
-    unsigned char* d_cb;
-    checkCudaErrors(cudaMalloc((void**)&d_cb, app.cb_size));
     
     Camera camera(nx, 16.0 / 9.0);
     Camera* d_camera;
     checkCudaErrors(cudaMalloc((void**)&d_camera, sizeof(Camera)));
     checkCudaErrors(cudaMemcpy(d_camera, &camera, sizeof(Camera), cudaMemcpyHostToDevice));
 
+    Window app(nx, ny, &camera);
+    unsigned char* d_cb;
+    checkCudaErrors(cudaMalloc((void**)&d_cb, app.cb_size));
+
     Scene scene;
     scene.init();
-
+    
     if (app.Init())
     {
         bool preStats = false;
@@ -34,7 +34,8 @@ int main()
         double t = 0;
         while (!app.Close())
         {
-            app.PollInput();
+            if (app.PollInput())
+                checkCudaErrors(cudaMemcpy(d_camera, &camera, sizeof(Camera), cudaMemcpyHostToDevice));
             if (!app.paused || app.paused != preStats)
             {
                 t = (double)glfwGetTime();
@@ -44,9 +45,10 @@ int main()
                     std::cout << "Rendering " << app.sampleCount << " sample count..." << std::endl;
                     t = preTime;
                 }
-                render <<< blocks, threads >>> (d_cb, d_camera, scene.d_lightsIndex, scene.d_objs, scene.internalNodes, scene.lightsCount, nx, ny, sampleCount, app.roughness, app.metallic, t);
-                // checkCudaErrors(cudaDeviceSynchronize());
+                render <<< blocks, threads >>> (d_cb, d_camera, scene.d_lightsIndex, scene.device.d_objs, scene.internalNodes, scene.lightsCount, nx, ny, sampleCount, app.roughness, app.metallic, t);
+                checkCudaErrors(cudaDeviceSynchronize());
                 cudaMemcpy(app.img, d_cb, app.cb_size, cudaMemcpyDeviceToHost);
+                scene.Update();
             }
 
             app.Update();
