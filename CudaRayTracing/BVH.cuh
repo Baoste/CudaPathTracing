@@ -301,7 +301,7 @@ __device__ inline void generateHierarchy(Hittable* d_objs, Node* leafNodes, Node
 
 }
 
-__device__ inline bool traverseIterative(Node* internalNodes, Hittable* objs, const Ray& ray, HitRecord& record)
+__device__ inline int traverseIterative(Node* internalNodes, Hittable* objs, const Ray& ray, HitRecord& record)
 {
     // Allocate traversal stack from thread-local memory,
     // and push NULL to indicate that there are no postponed nodes.
@@ -309,7 +309,7 @@ __device__ inline bool traverseIterative(Node* internalNodes, Hittable* objs, co
     Node** stackPtr = stack;
     *stackPtr++ = NULL; // push
 
-    bool isHit = false;
+    int hitId = -1;
 
     // Traverse nodes starting from the root.
     Node* node = internalNodes;
@@ -326,15 +326,15 @@ __device__ inline bool traverseIterative(Node* internalNodes, Hittable* objs, co
 
         // Query overlaps a leaf node => report collision.
         if (overlapL && childL->isLeaf)
-            if (objs[childL->objectID].hit(ray, tempRecord, 0.001, isHit ? record.t : INF))
+            if (objs[childL->objectID].hit(ray, tempRecord, 0.001, hitId >= 0 ? record.t : INF))
             { 
-                isHit = true;
+                hitId = childL->objectID;
                 record = tempRecord;
             }
         if (overlapR && childR->isLeaf)
-            if (objs[childR->objectID].hit(ray, tempRecord, 0.001, isHit ? record.t : INF))
+            if (objs[childR->objectID].hit(ray, tempRecord, 0.001, hitId >= 0 ? record.t : INF))
             {
-                isHit = true;
+                hitId = childR->objectID;
                 record = tempRecord;
             }
 
@@ -352,5 +352,5 @@ __device__ inline bool traverseIterative(Node* internalNodes, Hittable* objs, co
         }
     } while (node != NULL);
     
-    return isHit;
+    return hitId;
 }

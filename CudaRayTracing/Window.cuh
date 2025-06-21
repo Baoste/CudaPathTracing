@@ -10,6 +10,8 @@
 
 #include "Camera.cuh"
 #include "Scene.cuh"
+#include "Render.cuh"
+
 
 class Window
 {
@@ -22,7 +24,7 @@ public:
 
     bool spacePressed = false;
     Camera* camera;
-    Scene* scene;
+    static Scene* scene;
 
 public:
     bool paused = false;
@@ -36,8 +38,9 @@ public:
     GLuint shaderProgram;
 
 public:
-    double roughness = 1.0f;
-    double metallic = 0.0f;
+    static float roughness;
+    static float metallic;
+    static int selectSampleCount;
 
 public:
     Window(int w, int h, Camera* _camera, Scene* scene);
@@ -52,3 +55,4 @@ private:
     void setupTexturedQuad();
 };
 
+void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);

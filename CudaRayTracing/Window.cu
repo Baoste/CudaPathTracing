@@ -2,13 +2,17 @@
 #include <iostream>
 #include "Window.cuh"
 
+Scene* Window::scene = nullptr;
+float Window::roughness = 1.0;
+float Window::metallic = 0.0;
+int Window::selectSampleCount = 64;
 
 Window::Window(int w, int h, Camera* _camera, Scene* _scene) : width(w), height(h), tex(0)
 {
     camera = _camera;
-    sampleCount = 1;
     window = nullptr;
     scene = _scene;
+    sampleCount = 1;
 }
 
 Window::~Window()
@@ -170,7 +174,7 @@ bool Window::Init()
     }
 
     setupTexturedQuad();
-    //glfwSetMouseButtonCallback(window, mouse_button_callback);
+    glfwSetMouseButtonCallback(window, mouse_button_callback);
     glfwSetInputMode(window, GLFW_STICKY_KEYS, GLFW_TRUE);
 
     // ≥ı ºªØ ImGui
@@ -217,10 +221,9 @@ void Window::Update()
     ImGui::Begin("Config");
     float roughness_f = static_cast<float>(roughness);
     float metallic_f = static_cast<float>(metallic);
-    if (ImGui::SliderFloat("Roughness", &roughness_f, 0.0f, 1.0f))
-        roughness = static_cast<double>(roughness_f);
-    if (ImGui::SliderFloat("Metallic", &metallic_f, 0.0f, 1.0f))
-        metallic = static_cast<double>(metallic_f);
+    ImGui::SliderFloat("Roughness", &Window::roughness, 0.0f, 1.0f);
+    ImGui::SliderFloat("Metallic", &Window::metallic, 0.0f, 1.0f);
+    ImGui::SliderInt("SampleCount", &Window::selectSampleCount, 1, 512);
     ImGui::End();
 
     // ‰÷»æ
@@ -242,7 +245,7 @@ bool Window::PollInput()
         {
             paused = !paused;
             spacePressed = true;
-            sampleCount = paused ? 64 : 1;
+            sampleCount = paused ? selectSampleCount : 1;
             std::cout << (paused ? "Paused\n" : "Resumed\n");
             return true;
         }
@@ -281,17 +284,38 @@ bool Window::PollInput()
     }
     return false;
 }
-//
-//inline void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
-//{
-//    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
-//    {
-//        double xpos, ypos;
-//        glfwGetCursorPos(window, &xpos, &ypos);
-//        int pixelX = static_cast<int>(xpos);
-//        int pixelY = static_cast<int>(ypos);
-//
-//        std::cout << "Clicked pixel: (" << pixelX << ", " << pixelY << ")\n";
-//        
-//    }
-//}
+
+void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
+{
+    if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS)
+    {
+        double xpos, ypos;
+        glfwGetCursorPos(window, &xpos, &ypos);
+        int pixelX = static_cast<int>(xpos);
+        int pixelY = static_cast<int>(ypos);
+        int windowWidth, windowHeight;
+        glfwGetWindowSize(window, &windowWidth, &windowHeight);
+        pixelY = windowHeight - pixelY;
+
+        getObject << <1, 1 >> > (Window::scene->device.d_objs, Window::scene->d_camera, Window::scene->internalNodes, Window::scene->d_selectPtr, pixelX, pixelY);
+        cudaDeviceSynchronize();
+
+        // select object
+        unsigned int selectPtr;
+        cudaMemcpy(&selectPtr, Window::scene->d_selectPtr, sizeof(unsigned int), cudaMemcpyDeviceToHost);
+        for(const auto& obj : Window::scene->objects)
+        {
+            if (selectPtr >= obj.beginPtr && selectPtr < obj.endPtr)
+            {
+                // change material
+                int threadsPerBlock = 512;
+                int blocks = (numParticles + threadsPerBlock - 1) / threadsPerBlock;
+                changeMaterial << <blocks, threadsPerBlock >> > (Window::scene->device.d_objs, obj.beginPtr, obj.endPtr, 
+                    static_cast<double>(Window::roughness), static_cast<double>(Window::metallic));
+                cudaDeviceSynchronize();
+                std::cout << "Set " << obj.name << " Material to (" << Window::roughness << ", " << Window::metallic << ")" << std::endl;
+                break;
+            }
+        }
+    }
+}

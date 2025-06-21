@@ -4,7 +4,7 @@
 #define CLAMP01(x) ((x) > 1.0 ? 1.0 : ((x) < 0.0 ? 0.0 : (x)))
 
 __global__ void render(uchar4* devPtr, const Camera* camera, unsigned int* lightsIndex, Hittable* objs, Node* internalNodes, int lightsCount,
-    int max_x, int max_y, int sampleCount, double roughness, double metallic, double t)
+    int max_x, int max_y, int sampleCount, double t)
 {
     int i = threadIdx.x + blockIdx.x * blockDim.x;
     int j = threadIdx.y + blockIdx.y * blockDim.y;
@@ -38,7 +38,7 @@ __global__ void render(uchar4* devPtr, const Camera* camera, unsigned int* light
         while (true) 
         {
             // if no hit, break
-            if (!traverseIterative(internalNodes, objs, ray, record))
+            if (traverseIterative(internalNodes, objs, ray, record) < 0)
             {
                 radiance += throughput * camera->background;
                 break;
@@ -68,10 +68,8 @@ __global__ void render(uchar4* devPtr, const Camera* camera, unsigned int* light
                     (curand_uniform_double(&state) - 0.5) * lightHeight * light.edgeV;
                 direction = Unit(lightPos - record.hitPos);
                 Ray sampleRay = Ray(record.hitPos, direction, 0.0);
-                if (Dot(direction, record.normal) > 0.0 && !traverseIterative(internalNodes, objs, sampleRay, tmp))
+                if (Dot(direction, record.normal) > 0.0 && traverseIterative(internalNodes, objs, sampleRay, tmp) < 0)
                 {
-                    record.material->roughness = roughness;
-                    record.material->metallic = metallic;
                     double3 colorLight = lightIntensity * record.getFr(ray, direction) * Dot(direction, record.normal) * Dot(-direction, light.normal) / SquaredLength(lightPos - record.hitPos) / pdfLight;
                     radiance += throughput * colorLight;
                 }
@@ -91,8 +89,6 @@ __global__ void render(uchar4* devPtr, const Camera* camera, unsigned int* light
             double r2 = curand_uniform_double(&state);
             double pdf;
             record.getSample(ray, direction, pdf, r1, r2);
-            record.material->roughness = roughness;
-            record.material->metallic = metallic;
             throughput *= record.getFr(ray, direction) * Dot(direction, record.normal) / pdf / P_RR;
             // throughput *= fr * Dot(direction, record.normal) / pdf;
 
@@ -108,7 +104,39 @@ __global__ void render(uchar4* devPtr, const Camera* camera, unsigned int* light
     devPtr[offset] = make_uchar4(r, g, b, 255);
 }
 
-//__global__ void getObject(Hittable* objs, const Camera* camera, const int x, const int y)
-//{
-//    Ray ray = camera->getSampleRay(x, y);
-//}
+__global__ void getObject(Hittable* objs, const Camera* camera, Node* internalNodes, int* selectPtr, const int x, const int y)
+{
+    HitRecord record;
+    Ray ray = camera->getSampleRay(x, y);
+    int hitId = traverseIterative(internalNodes, objs, ray, record);
+    if (hitId >= 0 && record.material != NULL)
+    {
+        *selectPtr = hitId;
+    }
+    else
+    {
+        *selectPtr = -1;
+    }
+}
+
+__global__ void changeMaterial(Hittable* objs, const int start, const int end, const double roughness, const double metallic)
+{
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < start || idx >= end) return;
+
+    switch (objs[idx].type)
+    {
+    case ObjectType::SPHERE:
+        objs[idx].sphere.material.roughness = roughness;
+        objs[idx].sphere.material.metallic = metallic;
+        break;
+    case ObjectType::TRIANGLE:
+        objs[idx].triangle.material.roughness = roughness;
+        objs[idx].triangle.material.metallic = metallic;
+        break;
+    case ObjectType::LIGHT:
+    case ObjectType::NONE:
+    default:
+        return;
+    }
+}

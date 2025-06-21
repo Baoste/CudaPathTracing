@@ -18,7 +18,9 @@ class Scene
 {
 public:
     Device device;
+    Camera* d_camera;
     std::vector<Object> objects;
+    int* d_selectPtr;
 
 public:
     unsigned int* d_lightsIndex;
@@ -47,6 +49,8 @@ public:
     {
         allCount = 0;
         lightsCount = 0;
+        cudaMalloc((void**)&d_camera, sizeof(Camera));
+        cudaMalloc((void**)&d_selectPtr, sizeof(int));
     }
     ~Scene()
     {
@@ -54,6 +58,7 @@ public:
         cudaFree(d_objIdx);
         cudaFree(internalNodes);
         cudaFree(leafNodes);
+        cudaFree(d_camera);
     }
 
     void init()
