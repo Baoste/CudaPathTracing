@@ -173,9 +173,10 @@ bool Window::Init()
     // 初始化 ImGui
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    ImGuiIO& io = ImGui::GetIO();
+    io.Fonts->AddFontDefault();
 
-    ImGui::StyleColorsDark(); // 设置暗色主题
+    ImGui::StyleColorsDark();
 
     // 初始化平台/渲染器绑定
     ImGui_ImplGlfw_InitForOpenGL(window, true);
@@ -191,7 +192,6 @@ bool Window::Close()
 
 void Window::Update()
 {
-    glViewport(0, 0, width, height);
     glClear(GL_COLOR_BUFFER_BIT);
 
     // 上传纹理
@@ -203,9 +203,7 @@ void Window::Update()
     glBindVertexArray(VAO);
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
 
-    glUseProgram(0);
-    glBindVertexArray(0);     // 清除 VAO
-    glBindTexture(GL_TEXTURE_2D, 0); // 清除纹理
+    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);    // ! IMPORTANT, or imgui can not display properly
 
     // 每帧开始
     ImGui_ImplOpenGL3_NewFrame();
