@@ -23,10 +23,16 @@ public:
     double3 u, v, w;
 
 public:
-    __device__ inline Ray getRandomSampleRay(const int& x, const int& y, const double& randx, const double& randy) const {
+    __device__ inline Ray getRandomSampleRay(const int x, const int y, const double randx, const double randy) const 
+    {
         double3 pixel = pixel_center +
             (randx - 0.5 + x) * delta_h +
             (randy - 0.5 + y) * delta_v;
+        return Ray(lookFrom, pixel - lookFrom, 0.0);
+    }
+    __device__ inline Ray getSampleRay(const int x, const int y) const 
+    {
+        double3 pixel = pixel_center + x * delta_h + y * delta_v;
         return Ray(lookFrom, pixel - lookFrom, 0.0);
     }
     __host__ __device__ inline void move(double p, double t, double x)

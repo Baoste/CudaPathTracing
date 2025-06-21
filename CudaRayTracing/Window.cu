@@ -2,11 +2,13 @@
 #include <iostream>
 #include "Window.cuh"
 
-Window::Window(int w, int h, Camera* _camera) : width(w), height(h), tex(0)
+
+Window::Window(int w, int h, Camera* _camera, Scene* _scene) : width(w), height(h), tex(0)
 {
     camera = _camera;
     sampleCount = 1;
     window = nullptr;
+    scene = _scene;
 }
 
 Window::~Window()
@@ -168,6 +170,7 @@ bool Window::Init()
     }
 
     setupTexturedQuad();
+    //glfwSetMouseButtonCallback(window, mouse_button_callback);
     glfwSetInputMode(window, GLFW_STICKY_KEYS, GLFW_TRUE);
 
     // ≥ı ºªØ ImGui
@@ -278,4 +281,17 @@ bool Window::PollInput()
     }
     return false;
 }
-
+//
+//inline void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
+//{
+//    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
+//    {
+//        double xpos, ypos;
+//        glfwGetCursorPos(window, &xpos, &ypos);
+//        int pixelX = static_cast<int>(xpos);
+//        int pixelY = static_cast<int>(ypos);
+//
+//        std::cout << "Clicked pixel: (" << pixelX << ", " << pixelY << ")\n";
+//        
+//    }
+//}

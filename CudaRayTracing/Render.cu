@@ -3,7 +3,7 @@
 
 #define CLAMP01(x) ((x) > 1.0 ? 1.0 : ((x) < 0.0 ? 0.0 : (x)))
 
-__global__ void render(uchar4* devPtr, const Camera* camera, unsigned int* lightsIndex, Hittable** objs, Node* internalNodes, int lightsCount,
+__global__ void render(uchar4* devPtr, const Camera* camera, unsigned int* lightsIndex, Hittable* objs, Node* internalNodes, int lightsCount,
     int max_x, int max_y, int sampleCount, double roughness, double metallic, double t)
 {
     int i = threadIdx.x + blockIdx.x * blockDim.x;
@@ -57,7 +57,7 @@ __global__ void render(uchar4* devPtr, const Camera* camera, unsigned int* light
                 if (record.material->glass)
                     break;
 
-                Light light = (*objs)[lightsIndex[k]].light;
+                Light light = objs[lightsIndex[k]].light;
                 double lightWidth = light.width;
                 double lightHeight = light.width;
                 double pdfLight = 1.0 / (lightWidth * lightHeight);
@@ -107,3 +107,8 @@ __global__ void render(uchar4* devPtr, const Camera* camera, unsigned int* light
     unsigned char b = static_cast<unsigned char>(254.99 * CLAMP01(pixelRadience.z));
     devPtr[offset] = make_uchar4(r, g, b, 255);
 }
+
+//__global__ void getObject(Hittable* objs, const Camera* camera, const int x, const int y)
+//{
+//    Ray ray = camera->getSampleRay(x, y);
+//}

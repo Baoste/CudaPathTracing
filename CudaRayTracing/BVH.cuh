@@ -2,9 +2,9 @@
 
 #include <cuda_runtime.h>
 #include <curand_kernel.h>
+#include <iostream>
 #include "device_launch_parameters.h"
 #include "Hittable.cuh"
-#include <iostream>
 
 
 // Expands a 10-bit integer into 30 bits
@@ -186,7 +186,7 @@ __device__ inline int2 determineRange(const unsigned int* mortonCodes, int numOb
     return int2{ first, last };
 }
 
-__device__ inline void generateHierarchy(Hittable** d_objs, Node* leafNodes, Node* internalNodes, unsigned int* sortedMortonCodes, unsigned int* sortedObjectIDs, int num)
+__device__ inline void generateHierarchy(Hittable* d_objs, Node* leafNodes, Node* internalNodes, unsigned int* sortedMortonCodes, unsigned int* sortedObjectIDs, int num)
 {
     // Construct leaf nodes.
     // Note: This step can be avoided by storing
@@ -195,7 +195,7 @@ __device__ inline void generateHierarchy(Hittable** d_objs, Node* leafNodes, Nod
     {
         leafNodes[idx].isLeaf = true;
         leafNodes[idx].objectID = sortedObjectIDs[idx];
-        leafNodes[idx].aabb = (*d_objs)[sortedObjectIDs[idx]].aabb;
+        leafNodes[idx].aabb = d_objs[sortedObjectIDs[idx]].aabb;
         leafNodes[idx].childA = NULL;
         leafNodes[idx].childB = NULL;
         //printf("Leaf Node %d: AABB = [%f, %f, %f] - [%f, %f, %f]\n",
@@ -301,7 +301,7 @@ __device__ inline void generateHierarchy(Hittable** d_objs, Node* leafNodes, Nod
 
 }
 
-__device__ inline bool traverseIterative(Node* internalNodes, Hittable** objs, const Ray& ray, HitRecord& record)
+__device__ inline bool traverseIterative(Node* internalNodes, Hittable* objs, const Ray& ray, HitRecord& record)
 {
     // Allocate traversal stack from thread-local memory,
     // and push NULL to indicate that there are no postponed nodes.
@@ -326,13 +326,13 @@ __device__ inline bool traverseIterative(Node* internalNodes, Hittable** objs, c
 
         // Query overlaps a leaf node => report collision.
         if (overlapL && childL->isLeaf)
-            if ((*objs)[childL->objectID].hit(ray, tempRecord, 0.001, isHit ? record.t : INF))
+            if (objs[childL->objectID].hit(ray, tempRecord, 0.001, isHit ? record.t : INF))
             { 
                 isHit = true;
                 record = tempRecord;
             }
         if (overlapR && childR->isLeaf)
-            if ((*objs)[childR->objectID].hit(ray, tempRecord, 0.001, isHit ? record.t : INF))
+            if (objs[childR->objectID].hit(ray, tempRecord, 0.001, isHit ? record.t : INF))
             {
                 isHit = true;
                 record = tempRecord;

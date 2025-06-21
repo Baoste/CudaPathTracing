@@ -67,7 +67,7 @@ __host__ __device__ inline double3 pointTriangleDistance(const double3 p, const 
 }
 
 // iter tree for collision
-__host__ __device__ inline double3 traverseIterative(const double3 p, Node* internalNodes, Hittable** objs, double epsilon)
+__host__ __device__ inline double3 traverseIterative(const double3 p, Node* internalNodes, Hittable* objs, double epsilon)
 {
     // Allocate traversal stack from thread-local memory,
     // and push NULL to indicate that there are no postponed nodes.
@@ -91,7 +91,7 @@ __host__ __device__ inline double3 traverseIterative(const double3 p, Node* inte
         // Query overlaps a leaf node => report collision.
         if (overlapL && childL->isLeaf)
         {
-            Triangle tri = (*objs)[childL->objectID].triangle;
+            Triangle tri = objs[childL->objectID].triangle;
             double3 tmpOffset = pointTriangleDistance(p, tri.p0, tri.p1, tri.p2);
             //printf("%f %f %f\n", tmpOffset.x, tmpOffset.y, tmpOffset.z);
             if (SquaredLength(tmpOffset) < epsilon)
@@ -99,7 +99,7 @@ __host__ __device__ inline double3 traverseIterative(const double3 p, Node* inte
         }
         if (overlapR && childR->isLeaf)
         {
-            Triangle tri = (*objs)[childR->objectID].triangle;
+            Triangle tri = objs[childR->objectID].triangle;
             double3 tmpOffset = pointTriangleDistance(p, tri.p0, tri.p1, tri.p2);
             if (SquaredLength(tmpOffset) < epsilon)
                 offset = SquaredLength(offset) < SquaredLength(tmpOffset) ? offset : tmpOffset;
@@ -123,7 +123,7 @@ __host__ __device__ inline double3 traverseIterative(const double3 p, Node* inte
     return offset;
 }
 
-__host__ __device__ inline void collisionDetect(double* X, double* V, int idx, Node* internalNodes, Hittable** d_b)
+__host__ __device__ inline void collisionDetect(double* X, double* V, int idx, Node* internalNodes, Hittable* d_b)
 {
     double epsilon = 0.01;
     double friction = 0.3;
@@ -152,7 +152,7 @@ __host__ __device__ inline void collisionDetect(double* X, double* V, int idx, N
 }
 
 __global__ inline void PhysicsUpdate(double dt, double* X, double* V, double* F, double* M, double* L, int* edgeIdx,
-    Node* internalNodes, Hittable** d_b, int numParticles)
+    Node* internalNodes, Hittable* d_b, int numParticles)
 {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= numParticles) return;

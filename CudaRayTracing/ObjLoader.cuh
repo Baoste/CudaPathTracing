@@ -1,7 +1,5 @@
 #pragma once
 
-#define TINYOBJLOADER_IMPLEMENTATION
-
 #include <cuda_runtime.h>
 #include <curand_kernel.h>
 #include "tiny_obj_loader.h"

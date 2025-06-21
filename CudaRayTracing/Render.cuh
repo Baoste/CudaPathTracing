@@ -5,5 +5,7 @@
 #include "Hittable.cuh"
 #include "BVH.cuh"
 
-__global__ void render(uchar4* ptr, const Camera* camera, unsigned int* lightsIndex, Hittable** objs, Node* internalNodes, int lightsCount,
+__global__ void render(uchar4* ptr, const Camera* camera, unsigned int* lightsIndex, Hittable* objs, Node* internalNodes, int lightsCount,
     int max_x, int max_y, int sampleCount, double roughness, double metallic, double t);
+
+//__global__ void getObject(Hittable* objs, const Camera* camera, const int x, const int y);

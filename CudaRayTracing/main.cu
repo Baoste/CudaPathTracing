@@ -1,11 +1,10 @@
 
-#include <iostream>
 #include "Window.cuh"
-
 #include "Render.cuh"
 #include "Hittable.cuh"
-#include "Scene.cuh"
 
+#define TINYOBJLOADER_IMPLEMENTATION
+#include "tiny_obj_loader.h"
 
 int main()
 {
@@ -20,11 +19,11 @@ int main()
     checkCudaErrors(cudaMalloc((void**)&d_camera, sizeof(Camera)));
     checkCudaErrors(cudaMemcpy(d_camera, &camera, sizeof(Camera), cudaMemcpyHostToDevice));
 
-    Window app(nx, ny, &camera);
-
     Scene scene;
     scene.init();
-    
+
+    Window app(nx, ny, &camera, &scene);
+
     if (app.Init())
     {
         bool preStats = false;

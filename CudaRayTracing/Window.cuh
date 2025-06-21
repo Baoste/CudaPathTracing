@@ -9,6 +9,7 @@
 #include <cuda_gl_interop.h>
 
 #include "Camera.cuh"
+#include "Scene.cuh"
 
 class Window
 {
@@ -21,6 +22,7 @@ public:
 
     bool spacePressed = false;
     Camera* camera;
+    Scene* scene;
 
 public:
     bool paused = false;
@@ -38,7 +40,7 @@ public:
     double metallic = 0.0f;
 
 public:
-    Window(int w, int h, Camera* _camera);
+    Window(int w, int h, Camera* _camera, Scene* scene);
     ~Window();
     bool Init();
     bool Close();
