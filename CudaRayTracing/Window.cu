@@ -161,7 +161,8 @@ bool Window::Init()
     glfwMakeContextCurrent(window);
 
     // 初始化 GLAD
-    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
+    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) 
+    {
         std::cerr << "GLAD 初始化失败\n";
         return false;
     }
