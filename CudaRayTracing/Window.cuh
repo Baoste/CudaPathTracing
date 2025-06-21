@@ -41,6 +41,7 @@ public:
     static float roughness;
     static float metallic;
     static int selectSampleCount;
+    static bool glass;
 
 public:
     Window(int w, int h, Camera* _camera, Scene* scene);

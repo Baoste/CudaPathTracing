@@ -6,8 +6,8 @@ class Camera
 {
 public:
     Camera(int _width, double _aspectRatio);
-    //Color background = make_double3(0.5, 0.7, 1.0);
-    Color background = make_double3(0.1, 0.2, 0.2);
+    Color background = make_double3(0.2, 0.3, 0.5);
+    //Color background = make_double3(0.1, 0.2, 0.2);
     double aspectRatio = 16.0 / 9.0;
     int width = 640;
     int height = 1;

@@ -5,6 +5,7 @@
 Scene* Window::scene = nullptr;
 float Window::roughness = 1.0;
 float Window::metallic = 0.0;
+bool Window::glass = false;
 int Window::selectSampleCount = 64;
 
 Window::Window(int w, int h, Camera* _camera, Scene* _scene) : width(w), height(h), tex(0)
@@ -223,6 +224,7 @@ void Window::Update()
     float metallic_f = static_cast<float>(metallic);
     ImGui::SliderFloat("Roughness", &Window::roughness, 0.0f, 1.0f);
     ImGui::SliderFloat("Metallic", &Window::metallic, 0.0f, 1.0f);
+    ImGui::Checkbox("Glass", &Window::glass);
     ImGui::SliderInt("SampleCount", &Window::selectSampleCount, 1, 512);
     ImGui::End();
 
@@ -308,10 +310,10 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
             if (selectPtr >= obj.beginPtr && selectPtr < obj.endPtr)
             {
                 // change material
-                int threadsPerBlock = 512;
-                int blocks = (numParticles + threadsPerBlock - 1) / threadsPerBlock;
+                int threadsPerBlock = 1024;
+                int blocks = (obj.endPtr - obj.beginPtr + threadsPerBlock - 1) / threadsPerBlock;
                 changeMaterial << <blocks, threadsPerBlock >> > (Window::scene->device.d_objs, obj.beginPtr, obj.endPtr, 
-                    static_cast<double>(Window::roughness), static_cast<double>(Window::metallic));
+                    static_cast<double>(Window::roughness), static_cast<double>(Window::metallic), Window::glass);
                 cudaDeviceSynchronize();
                 std::cout << "Set " << obj.name << " Material to (" << Window::roughness << ", " << Window::metallic << ")" << std::endl;
                 break;

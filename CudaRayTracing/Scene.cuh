@@ -94,7 +94,7 @@ public:
         cudaMalloc((void**)&internalNodes, (allCount - 1) * sizeof(Node));
         cudaMalloc((void**)&leafNodes, allCount * sizeof(Node));
 
-        double simTime = 0.1;
+        double simTime = 1.0;
         printf("Start sim physics for %f seconds...\n", simTime);
         while (cloth.simTime < simTime)
         {
@@ -107,7 +107,7 @@ public:
     {
         cloth.simTime += cloth.dt;
 
-        int threadsPerBlock = 512;
+        int threadsPerBlock = 1024;
         int blocks = (numParticles + threadsPerBlock - 1) / threadsPerBlock;
         PhysicsUpdate<<<blocks, threadsPerBlock>>>(cloth.dt, d_X, d_V, d_F, d_M, d_L, d_edgeIdx, internalNodesExceptCloth, device.d_objs, numParticles);
         checkCudaErrors(cudaDeviceSynchronize());

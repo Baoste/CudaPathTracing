@@ -119,7 +119,7 @@ __global__ void getObject(Hittable* objs, const Camera* camera, Node* internalNo
     }
 }
 
-__global__ void changeMaterial(Hittable* objs, const int start, const int end, const double roughness, const double metallic)
+__global__ void changeMaterial(Hittable* objs, const int start, const int end, const double roughness, const double metallic, const bool glass)
 {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < start || idx >= end) return;
@@ -129,10 +129,12 @@ __global__ void changeMaterial(Hittable* objs, const int start, const int end, c
     case ObjectType::SPHERE:
         objs[idx].sphere.material.roughness = roughness;
         objs[idx].sphere.material.metallic = metallic;
+        objs[idx].sphere.material.glass = glass;
         break;
     case ObjectType::TRIANGLE:
         objs[idx].triangle.material.roughness = roughness;
         objs[idx].triangle.material.metallic = metallic;
+        objs[idx].triangle.material.glass = glass;
         break;
     case ObjectType::LIGHT:
     case ObjectType::NONE:

@@ -10,4 +10,4 @@ __global__ void render(uchar4* ptr, const Camera* camera, unsigned int* lightsIn
 
 __global__ void getObject(Hittable* objs, const Camera* camera, Node* internalNodes, int* selectPtr, const int x, const int y);
 
-__global__ void changeMaterial(Hittable* objs, const int start, const int end, const double roughness, const double metallic);
+__global__ void changeMaterial(Hittable* objs, const int start, const int end, const double roughness, const double metallic, const bool glass);
