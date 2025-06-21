@@ -16,7 +16,6 @@ __host__ __device__ inline double3 operator+(const double3& v1, const double3& v
 {
     return make_double3(v1.x + v2.x, v1.y + v2.y, v1.z + v2.z);
 }
-#include "rtmath.cuh"
 
 __host__ __device__ inline double3 operator-(const double3& v1, const double3& v2)
 {
@@ -81,6 +80,16 @@ __host__ __device__ inline void operator/=(double3& v, const double& t)
     v.x /= t;
     v.y /= t;
     v.z /= t;
+}
+
+__host__ __device__ inline uchar4 operator+(const uchar4& v1, const uchar4& v2)
+{
+    return make_uchar4(v1.x + v2.x, v1.y + v2.y, v1.z + v2.z, v1.w + v2.w);
+}
+
+__host__ __device__ inline uchar4 operator/(const uchar4& v1, const unsigned char t)
+{
+    return make_uchar4(v1.x / t, v1.y / t, v1.z / t, v1.w / t);
 }
 
 __host__ __device__ inline double SquaredLength(const double3& v)

@@ -6,12 +6,13 @@
 #include "./imgui/imgui.h"
 #include "./imgui/imgui_impl_glfw.h"
 #include "./imgui/imgui_impl_opengl3.h"
+#include <cuda_gl_interop.h>
 
 #include "Camera.cuh"
 
 class Window
 {
-private:
+public:
     int width;
     int height;
 
@@ -22,10 +23,15 @@ private:
     Camera* camera;
 
 public:
-    unsigned char* img;
-    size_t cb_size;
     bool paused = false;
     int sampleCount;
+    uchar4* devicePtr;
+
+public:
+    GLuint bufferObj;
+    cudaGraphicsResource* resource;
+    unsigned int VBO, VAO, EBO;
+    GLuint shaderProgram;
 
 public:
     double roughness = 1.0f;
@@ -38,5 +44,9 @@ public:
     bool Close();
     void Update();
     bool PollInput();
+
+private:
+    GLuint createShaderProgram();
+    void setupTexturedQuad();
 };
 

@@ -34,12 +34,14 @@ public:
         // TODO need to change axies
         double3 offset = lookFrom - lookAt;
         double focalLength = Length(offset);
-        double updateT = acos(offset.z / focalLength) - t;
-        double updateP = atan2(offset.y, offset.x) - p;
+        double updateT = acos(offset.y / focalLength);
+        if (updateT < PI - 0.1 && t < 0 || updateT > 0.1 && t > 0)
+            updateT -= t;
+        double updateP = atan2(offset.z, offset.x) - p;
         lookFrom = lookAt + make_double3(
             focalLength * sin(updateT) * cos(updateP),
-            focalLength * sin(updateT) * sin(updateP),
-            focalLength * cos(updateT)
+            focalLength * cos(updateT),
+            focalLength * sin(updateT) * sin(updateP)
         );
 
         double theta = DegreesToRadians(vFov);

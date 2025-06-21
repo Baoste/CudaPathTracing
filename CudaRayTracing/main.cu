@@ -21,8 +21,6 @@ int main()
     checkCudaErrors(cudaMemcpy(d_camera, &camera, sizeof(Camera), cudaMemcpyHostToDevice));
 
     Window app(nx, ny, &camera);
-    unsigned char* d_cb;
-    checkCudaErrors(cudaMalloc((void**)&d_cb, app.cb_size));
 
     Scene scene;
     scene.init();
@@ -45,9 +43,8 @@ int main()
                     std::cout << "Rendering " << app.sampleCount << " sample count..." << std::endl;
                     t = preTime;
                 }
-                render <<< blocks, threads >>> (d_cb, d_camera, scene.d_lightsIndex, scene.device.d_objs, scene.internalNodes, scene.lightsCount, nx, ny, sampleCount, app.roughness, app.metallic, t);
+                render <<< blocks, threads >>> (app.devicePtr, d_camera, scene.d_lightsIndex, scene.device.d_objs, scene.internalNodes, scene.lightsCount, nx, ny, sampleCount, app.roughness, app.metallic, t);
                 checkCudaErrors(cudaDeviceSynchronize());
-                cudaMemcpy(app.img, d_cb, app.cb_size, cudaMemcpyDeviceToHost);
                 scene.Update();
             }
 
@@ -57,6 +54,5 @@ int main()
         }
     }
 
-    cudaFree(d_cb);
     cudaFree(d_camera);
 }

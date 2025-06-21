@@ -3,18 +3,19 @@
 
 #define CLAMP01(x) ((x) > 1.0 ? 1.0 : ((x) < 0.0 ? 0.0 : (x)))
 
-__global__ void render(unsigned char* cb, const Camera* camera, unsigned int* lightsIndex, Hittable** objs, Node* internalNodes, int lightsCount, 
+__global__ void render(uchar4* devPtr, const Camera* camera, unsigned int* lightsIndex, Hittable** objs, Node* internalNodes, int lightsCount,
     int max_x, int max_y, int sampleCount, double roughness, double metallic, double t)
 {
     int i = threadIdx.x + blockIdx.x * blockDim.x;
     int j = threadIdx.y + blockIdx.y * blockDim.y;
     if ((i >= max_x) || (j >= max_y)) return;
 
-    int pixelIndex = j * max_x * 4 + i * 4;
+    // int pixelIndex = j * max_x * 4 + i * 4;
+    int offset = j * max_x + i;
     
     // random sample
     curandState state;
-    curand_init(3317, pixelIndex, 0, &state);
+    curand_init(3317, offset, 0, &state);
 
     // path tracing
    
@@ -101,8 +102,8 @@ __global__ void render(unsigned char* cb, const Camera* camera, unsigned int* li
     }
 
     // set color
-    cb[pixelIndex + 0] = static_cast<unsigned char>(255.99 * CLAMP01(pixelRadience.x));
-    cb[pixelIndex + 1] = static_cast<unsigned char>(255.99 * CLAMP01(pixelRadience.y));
-    cb[pixelIndex + 2] = static_cast<unsigned char>(255.99 * CLAMP01(pixelRadience.z));
-    cb[pixelIndex + 3] = 255;
+    unsigned char r = static_cast<unsigned char>(254.99 * CLAMP01(pixelRadience.x));
+    unsigned char g = static_cast<unsigned char>(254.99 * CLAMP01(pixelRadience.y));
+    unsigned char b = static_cast<unsigned char>(254.99 * CLAMP01(pixelRadience.z));
+    devPtr[offset] = make_uchar4(r, g, b, 255);
 }
