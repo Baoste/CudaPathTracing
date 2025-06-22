@@ -34,6 +34,7 @@ __global__ void render(uchar4* devPtr, const Camera* camera, unsigned int* light
         // trace the ray
         double3 throughput = make_double3(1.0, 1.0, 1.0);  // ÀÛ³Ë fr * cos¦È / pdf
         double3 radiance = make_double3(0.0, 0.0, 0.0);    // final result
+        bool firstHit = true;
         // int depth = 0;
         while (true) 
         {
@@ -43,9 +44,10 @@ __global__ void render(uchar4* devPtr, const Camera* camera, unsigned int* light
                 radiance += throughput * camera->background;
                 break;
             }
+            // if hit light
             if (record.material == NULL)
             {
-                radiance += throughput * make_double3(10.0, 10.0, 10.0);
+                radiance += throughput * make_double3(1.0, 1.0, 1.0);
                 break;
             }
 
@@ -68,7 +70,9 @@ __global__ void render(uchar4* devPtr, const Camera* camera, unsigned int* light
                     (curand_uniform_double(&state) - 0.5) * lightHeight * light.edgeV;
                 direction = Unit(lightPos - record.hitPos);
                 Ray sampleRay = Ray(record.hitPos, direction, 0.0);
-                if (Dot(direction, record.normal) > 0.0 && traverseIterative(internalNodes, objs, sampleRay, tmp) < 0)
+
+                int obstacleToLight = traverseIterative(internalNodes, objs, sampleRay, tmp);
+                if (Dot(direction, record.normal) > 0.0 && Dot(-direction, light.normal) > 0.0 && obstacleToLight == lightsIndex[k])
                 {
                     double3 colorLight = lightIntensity * record.getFr(ray, direction) * Dot(direction, record.normal) * Dot(-direction, light.normal) / SquaredLength(lightPos - record.hitPos) / pdfLight;
                     radiance += throughput * colorLight;
@@ -77,7 +81,7 @@ __global__ void render(uchar4* devPtr, const Camera* camera, unsigned int* light
 
             // contribution from other refectors
             // russian roulette
-            double P_RR = 0.8;
+            double P_RR = 0.9;
             if (curand_uniform_double(&state) > P_RR)
                 break;
 
@@ -93,10 +97,11 @@ __global__ void render(uchar4* devPtr, const Camera* camera, unsigned int* light
             // throughput *= fr * Dot(direction, record.normal) / pdf;
 
             ray = Ray(record.hitPos, direction, 0.0);
+            firstHit = false;
         }
-        pixelRadience += radiance / sampleCount;
+        pixelRadience += radiance;
     }
-
+    pixelRadience /= sampleCount;
     // set color
     unsigned char r = static_cast<unsigned char>(254.99 * CLAMP01(pixelRadience.x));
     unsigned char g = static_cast<unsigned char>(254.99 * CLAMP01(pixelRadience.y));

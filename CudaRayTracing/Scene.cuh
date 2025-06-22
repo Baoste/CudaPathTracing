@@ -65,19 +65,22 @@ public:
     {
         // light
         cudaMalloc((void**)&d_lightsIndex, 10 * sizeof(unsigned int));
-        addOneLight(make_double3(0.0, 4.0, 0.0), 2.0, 2.0, make_double3(0.0, -1.0, 0.0), make_double3(5.0, 1.0, 1.0));
-        addOneLight(make_double3(0.0, 4.0, 4.0), 1.0, 1.0, make_double3(0.0, -1.0, -1.0), make_double3(1.0, 10.0, 10.0));
-        addOneLight(make_double3(-2.0, 2.0, -9.9), 2.0, 2.0, make_double3(0.0, 0.0, 1.0), make_double3(20.0, 20.0, 20.0), true);
+        addOneLight(make_double3(0.0, 9.99, 0.0), 3.0, 3.0, make_double3(0.0, -1.0, 0.0), make_double3(20.0, 20.0, 20.0), true);
+        // addOneLight(make_double3(-2.0, 2.0, -9.9), 2.0, 2.0, make_double3(0.0, 0.0, 1.0), make_double3(20.0, 20.0, 20.0), true);
 
         // sphere
-        addOneSphere(make_double3(2.0, 1.0, 2.0), 1.0, make_double3(0.2, 0.8, 0.1));
+        addOneSphere(make_double3(2.0, 1.0, 2.0), 1.0, make_double3(0.5, 0.4, 0.6));
 
         // floor
-        addFloor(make_double3(-100.0, 0.0, -10.0), make_double3(100.0, 0.0, -10.0), make_double3(-100.0, 0.0, 10.0), make_double3(100.0, 0.0, 10.0), make_double3(0.8, 0.8, 0.8));
-        addFloor(make_double3(-100.0, 10.0, -10.0), make_double3(100.0, 10.0, -10.0), make_double3(-100.0, 0.0, -10.0), make_double3(100.0, 0.0, -10.0), make_double3(0.8, 0.2, 0.1));
+        addFloor(make_double3(-6.0, 0.0, -6.0), make_double3(6.0, 0.0, -6.0), make_double3(-6.0, 0.0, 6.0), make_double3(6.0, 0.0, 6.0), make_double3(0.8, 0.8, 0.8));
+        addFloor(make_double3(-6.0, 10.0, -6.0), make_double3(6.0, 10.0, -6.0), make_double3(-6.0, 0.0, -6.0), make_double3(6.0, 0.0, -6.0), make_double3(0.8, 0.8, 0.8));
+        addFloor(make_double3(-6.0, 10.0, 6.0), make_double3(-6.0, 10.0, -6.0), make_double3(-6.0, 0.0, 6.0), make_double3(-6.0, 0.0, -6.0), make_double3(0.2, 0.8, 0.1));
+        addFloor(make_double3(6.0, 10.0, -6.0), make_double3(6.0, 10.0, 6.0), make_double3(6.0, 0.0, -6.0), make_double3(6.0, 0.0, 6.0), make_double3(0.1, 0.2, 0.8));
+        addFloor(make_double3(-6.0, 10.0, 6.0), make_double3(6.0, 10.0, 6.0), make_double3(-6.0, 10.0, -6.0), make_double3(6.0, 10.0, -6.0), make_double3(0.8, 0.8, 0.8));
 
         // mesh
-        addMeshes("C:/Users/59409/Downloads/teapot.obj", make_double3(-1.0, 0.0, -1.0), make_double3(0.8, 0.8, 0.8));
+        addMeshes("C:/Users/59409/Downloads/teapot.obj", make_double3(-2.0, 0.0, 2.0), make_double3(0.8, 0.8, 0.8), true, 0.7);
+        addMeshes("C:/Users/59409/Downloads/bun_zipper.ply.obj", make_double3(-1.0, -0.6, -1.0), make_double3(0.8, 0.8, 0.8), false, 20.0);
 
         cudaMalloc((void**)&d_mortonsExceptCloth, allCount * sizeof(unsigned int));
         cudaMalloc((void**)&d_objIdxExceptCloth, allCount * sizeof(unsigned int));
@@ -107,7 +110,7 @@ public:
     {
         cloth.simTime += cloth.dt;
 
-        int threadsPerBlock = 1024;
+        int threadsPerBlock = 256;
         int blocks = (numParticles + threadsPerBlock - 1) / threadsPerBlock;
         PhysicsUpdate<<<blocks, threadsPerBlock>>>(cloth.dt, d_X, d_V, d_F, d_M, d_L, d_edgeIdx, internalNodesExceptCloth, device.d_objs, numParticles);
         checkCudaErrors(cudaDeviceSynchronize());
@@ -171,19 +174,19 @@ public:
         objects.push_back({ "floor", prePtr, afterPtr });
     }
 
-    void addMeshes(const std::string& fileName, double3 position, double3 color)
+    void addMeshes(const std::string& fileName, double3 position, double3 color, bool glass = false, const double scale = 1.0)
     {
         unsigned int prePtr, afterPtr;
         cudaMemcpy(&prePtr, device.d_objPtr, sizeof(unsigned int), cudaMemcpyDeviceToHost);
 
         Mesh mesh;
-        mesh.loadFromFile(fileName);
+        mesh.loadFromFile(fileName, scale);
         mesh.transform(position);
         int num = mesh.triangles.size();
         MeshTriangle* d_triangles;
         cudaMalloc((void**)&d_triangles, num * sizeof(MeshTriangle));
         cudaMemcpy(d_triangles, mesh.triangles.data(), num * sizeof(MeshTriangle), cudaMemcpyHostToDevice);
-        allocateMeshesOnDevice << < 1, 1 >> > (device.d_objs, device.d_objPtr, d_triangles, color, num);
+        allocateMeshesOnDevice << < 1, 1 >> > (device.d_objs, device.d_objPtr, d_triangles, color, glass, num);
         checkCudaErrors(cudaDeviceSynchronize());
         cudaMemcpy(&afterPtr, device.d_objPtr, sizeof(unsigned int), cudaMemcpyDeviceToHost);
         allCount += num;

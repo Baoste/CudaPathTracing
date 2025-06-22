@@ -41,7 +41,7 @@ __global__ inline void allocateFloorOnDevice(Hittable* d_objs, unsigned int* d_o
     new (&d_objs[(*d_objPtr)++]) Hittable(Triangle(rt, lb, rb, color));
 }
 
-__global__ inline void allocateMeshesOnDevice(Hittable* d_objs, unsigned int* d_objPtr, MeshTriangle* d_triangles, double3 color, const int size)
+__global__ inline void allocateMeshesOnDevice(Hittable* d_objs, unsigned int* d_objPtr, MeshTriangle* d_triangles, double3 color, bool glass, const int size)
 {
     for (int i = 0; i < size; i++)
     {
@@ -50,7 +50,7 @@ __global__ inline void allocateMeshesOnDevice(Hittable* d_objs, unsigned int* d_
             d_triangles[i].p1,
             d_triangles[i].p2,
             color,
-            true
+            glass
         ));
     }
 }
@@ -106,9 +106,10 @@ __global__ inline void updateClothToDevice(Hittable* d_objs, unsigned int* d_clo
 
 __global__ inline void generateMortonCodes(Hittable* d_objs, unsigned int* d_mortons, unsigned int* d_objsIdx, const int size)
 {
-    for (int i = 0; i < size; i++)
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < size)
     {
-        // printf("Object %d: Center: (%f, %f, %f)\n", i, d_objs[i].center.x, d_objs[i].center.y, d_objs[i].center.z);
+        //printf("Object %d: Center: (%f, %f, %f)\n", i, d_objs[i].center.x, d_objs[i].center.y, d_objs[i].center.z);
         d_mortons[i] = morton3D(d_objs[i].center);
         d_objsIdx[i] = i;
     }
@@ -130,7 +131,7 @@ public:
 public:
     Device()
     {
-        cudaMalloc((void**)&d_objs, 20000 * sizeof(Hittable));
+        cudaMalloc((void**)&d_objs, 100000 * sizeof(Hittable));
         cudaMalloc((void**)&d_objPtr, sizeof(unsigned int));
         cudaMalloc((void**)&d_lightPtr, sizeof(unsigned int));
         cudaMalloc((void**)&d_clothPtr, sizeof(unsigned int));
@@ -138,7 +139,9 @@ public:
     }
     void buildBVH(Hittable* d_objs, Node* leafNodes, Node* internalNodes, unsigned int* d_mortons, unsigned int* d_objsIdx, const int size)
     {
-        generateMortonCodes << <1, 1 >> > (d_objs, d_mortons, d_objsIdx, size);
+        int threadsPerBlock = 256;
+        int blocks = (size + threadsPerBlock - 1) / threadsPerBlock;
+        generateMortonCodes << <blocks, threadsPerBlock >> > (d_objs, d_mortons, d_objsIdx, size);
         checkCudaErrors(cudaDeviceSynchronize());
         // sort
         thrust::device_ptr<unsigned int> d_keys(d_mortons);

@@ -52,6 +52,18 @@ struct Node
 };
 
 // checks if the ray intersects the AABB
+__device__ inline bool checkSlab(
+    double o, double inv, double minVal, double maxVal,
+    double& t_min, double& t_max)
+{
+    double t0 = (minVal - o) * inv;
+    double t1 = (maxVal - o) * inv;
+    if (inv < 0.0)
+        mSwap(t0, t1);
+    t_min = fmax(t0, t_min);
+    t_max = fmin(t1, t_max);
+    return t_max > t_min;
+}
 __device__ inline bool checkOverlap(const Ray& ray, const AABB& aabb, double t_min, double t_max)
 {
     const double3 invD = make_double3(
@@ -62,27 +74,9 @@ __device__ inline bool checkOverlap(const Ray& ray, const AABB& aabb, double t_m
 
     const double3 orig = ray.origin;
 
-    for (int i = 0; i < 3; i++)
-    {
-        double minVal = ((double*)&aabb.min)[i];
-        double maxVal = ((double*)&aabb.max)[i];
-        double o = ((double*)&orig)[i];
-        double inv = ((double*)&invD)[i];
-
-        double t0 = (fmin(minVal, maxVal) - o) * inv;
-        double t1 = (fmax(minVal, maxVal) - o) * inv;
-
-        if (inv < 0.0)
-            mSwap(t0, t1);
-
-        t_min = t0 > t_min ? t0 : t_min;
-        t_max = t1 < t_max ? t1 : t_max;
-
-        if (t_max <= t_min)
-            return false;
-    }
-
-    return true;
+    return checkSlab(orig.x, invD.x, aabb.min.x, aabb.max.x, t_min, t_max) &&
+        checkSlab(orig.y, invD.y, aabb.min.y, aabb.max.y, t_min, t_max) &&
+        checkSlab(orig.z, invD.z, aabb.min.z, aabb.max.z, t_min, t_max);
 }
 
 __device__ inline int findSplit(unsigned int* sortedMortonCodes, int first, int last)
@@ -198,10 +192,11 @@ __device__ inline void generateHierarchy(Hittable* d_objs, Node* leafNodes, Node
         leafNodes[idx].aabb = d_objs[sortedObjectIDs[idx]].aabb;
         leafNodes[idx].childA = NULL;
         leafNodes[idx].childB = NULL;
-        //printf("Leaf Node %d: AABB = [%f, %f, %f] - [%f, %f, %f]\n",
+        //printf("Leaf Node %d: AABB = [%f, %f, %f] - [%f, %f, %f] : %d\n",
         //    leafNodes[idx].objectID,
         //    leafNodes[idx].aabb.min.x, leafNodes[idx].aabb.min.y, leafNodes[idx].aabb.min.z,
-        //    leafNodes[idx].aabb.max.x, leafNodes[idx].aabb.max.y, leafNodes[idx].aabb.max.z
+        //    leafNodes[idx].aabb.max.x, leafNodes[idx].aabb.max.y, leafNodes[idx].aabb.max.z,
+        //    sortedMortonCodes[idx]
         //);
     }
 
@@ -305,7 +300,7 @@ __device__ inline int traverseIterative(Node* internalNodes, Hittable* objs, con
 {
     // Allocate traversal stack from thread-local memory,
     // and push NULL to indicate that there are no postponed nodes.
-    Node* stack[64];
+    Node* stack[256];
     Node** stackPtr = stack;
     *stackPtr++ = NULL; // push
 
@@ -326,13 +321,13 @@ __device__ inline int traverseIterative(Node* internalNodes, Hittable* objs, con
 
         // Query overlaps a leaf node => report collision.
         if (overlapL && childL->isLeaf)
-            if (objs[childL->objectID].hit(ray, tempRecord, 0.001, hitId >= 0 ? record.t : INF))
+            if (objs[childL->objectID].hit(ray, tempRecord, 0.01, hitId >= 0 ? record.t : INF))
             { 
                 hitId = childL->objectID;
                 record = tempRecord;
             }
         if (overlapR && childR->isLeaf)
-            if (objs[childR->objectID].hit(ray, tempRecord, 0.001, hitId >= 0 ? record.t : INF))
+            if (objs[childR->objectID].hit(ray, tempRecord, 0.01, hitId >= 0 ? record.t : INF))
             {
                 hitId = childR->objectID;
                 record = tempRecord;
@@ -351,6 +346,6 @@ __device__ inline int traverseIterative(Node* internalNodes, Hittable* objs, con
                 *stackPtr++ = childR; // push
         }
     } while (node != NULL);
-    
+
     return hitId;
 }

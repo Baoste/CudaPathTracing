@@ -10,7 +10,7 @@
 #include "rtmath.cuh"
 
 
-const int division = 50;
+const int division = 20;
 const int numParticles = division * division;
 const int numPartAxis = 3 * numParticles;
 

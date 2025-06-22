@@ -31,7 +31,7 @@ public:
         double c = Dot(ray.origin - center, ray.origin - center) - radius * radius;
         double delta = b * b - a * c;
         // if no hit, return false
-        if (delta < 0)
+        if (delta < 0.0)
             return false;
         // if hit. caculate t, from light = o+td
         double t = (-b - sqrt(delta)) / a;
@@ -138,7 +138,8 @@ public:
             return false;
         double t = Dot(center - ray.origin, normal) / denom;
         // back face or far away
-        if (t < 0)
+        // ! important change, origin version: t < 0 which is fault
+        if (t < t_min || t > t_max)
             return false;
 
         double3 hitPoint = ray.at(t);

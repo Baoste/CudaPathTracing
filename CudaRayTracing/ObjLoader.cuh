@@ -20,10 +20,10 @@ public:
 
 public:
     // Load mesh from a file
-    bool loadFromFile(const std::string& filename) 
+    bool loadFromFile(const std::string& filename, const double scale)
     {
         triangles.clear();
-        loadMesh(filename, triangles);
+        loadMesh(filename, triangles, scale);
         return !triangles.empty();
     }
 
@@ -38,7 +38,7 @@ public:
     }
 
 private:
-    void loadMesh(const std::string& filename, std::vector<MeshTriangle>& triangles)
+    void loadMesh(const std::string& filename, std::vector<MeshTriangle>& triangles, const double scale)
     {
         tinyobj::attrib_t attrib;
         std::vector<tinyobj::shape_t> shapes;
@@ -68,7 +68,7 @@ private:
                     double x = attrib.vertices[3 * vidx + 0];
                     double y = attrib.vertices[3 * vidx + 1];
                     double z = attrib.vertices[3 * vidx + 2];
-                    double3 p = make_double3(x, y, z);
+                    double3 p = make_double3(x, y, z) * scale;
 
                     if (v == 0) tri.p0 = p;
                     else if (v == 1) tri.p1 = p;
