@@ -99,12 +99,12 @@ public:
         cudaMalloc((void**)&internalNodes, (allCount - 1) * sizeof(Node));
         cudaMalloc((void**)&leafNodes, allCount * sizeof(Node));
 
-        double simTime = 1.0;
+        double simTime = 1.6;
         printf("Start sim physics for %f seconds...\n", simTime);
         while (cloth.simTime < simTime)
         {
             Update();
-            break;
+            // break;
         }
     }
 
