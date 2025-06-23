@@ -27,7 +27,7 @@ public:
     }
     __device__ inline double3 getFr(const Ray& ray, const double3 direction)
     {
-        return (*material).fr(ray, normal, direction);
+        return (*material).fr(ray, normal, direction, frontFace);
     }
     __device__ inline void getSample(const Ray& ray, double3& direction, double& pdf, double r1, double r2)
     {

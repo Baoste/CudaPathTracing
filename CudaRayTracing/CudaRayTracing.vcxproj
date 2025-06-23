@@ -87,7 +87,9 @@
     <CudaCompile Include="Render.cu" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Camera.cu" />
+    <CudaCompile Include="Camera.cu">
+      <FileType>Document</FileType>
+    </CudaCompile>
     <ClCompile Include="glad.c" />
     <ClCompile Include="imgui\imgui.cpp" />
     <ClCompile Include="imgui\imgui_demo.cpp" />

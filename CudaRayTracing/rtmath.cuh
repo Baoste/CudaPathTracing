@@ -121,6 +121,56 @@ __host__ __device__ inline double3 Unit(const double3& v)
 
 using Color = double3;
 
+// Complex
+using Complex = double2;
+__host__ __device__ inline Complex operator/(const Complex& v1, const Complex& v2)
+{
+    double a = v1.x, b = v1.y;
+    double c = v2.x, d = v2.y;
+
+    double denominator = c * c + d * d;
+    return make_double2(
+        (a * c + b * d) / denominator,
+        (b * c - a * d) / denominator
+    );
+}
+
+__host__ __device__ inline Complex operator*(double t, const Complex& v)
+{
+    return make_double2(t * v.x, t * v.y);
+}
+
+__host__ __device__ inline Complex operator*(const Complex& v, double t)
+{
+    return make_double2(t * v.x, t * v.y);
+}
+
+__host__ __device__ inline Complex operator+(double t, const Complex& v)
+{
+    return make_double2(t + v.x, v.y);
+}
+
+__host__ __device__ inline Complex operator+(const Complex& v, double t)
+{
+    return make_double2(t + v.x, v.y);
+}
+
+__host__ __device__ inline Complex operator-(double t, const Complex& v)
+{
+    return make_double2(t - v.x, -v.y);
+}
+
+__host__ __device__ inline Complex operator-(const Complex& v, double t)
+{
+    return make_double2(v.x - t, v.y);
+}
+
+__host__ __device__ inline double Norm(const Complex& v)
+{
+    return v.x * v.x + v.y * v.y;
+}
+
+// Degree
 __host__ __device__ inline double DegreesToRadians(double degrees)
 {
     return degrees * PI / 180.0;

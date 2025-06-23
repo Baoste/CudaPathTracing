@@ -38,8 +38,8 @@ public:
     GLuint shaderProgram;
 
 public:
-    static float roughness;
-    static float metallic;
+    static float alphaX;
+    static float alphaY;
     static int selectSampleCount;
     static bool glass;
 

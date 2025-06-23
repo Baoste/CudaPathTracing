@@ -43,7 +43,7 @@ int main()
                 }
                 render <<< blocks, threads >>> (app.devicePtr, scene.d_camera, scene.d_lightsIndex, scene.device.d_objs, scene.internalNodes, scene.lightsCount, nx, ny, sampleCount, t);
                 checkCudaErrors(cudaDeviceSynchronize());
-                scene.Update();
+                // scene.Update();
             }
 
             app.Update();

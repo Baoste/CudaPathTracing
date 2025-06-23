@@ -3,8 +3,8 @@
 #include "Window.cuh"
 
 Scene* Window::scene = nullptr;
-float Window::roughness = 1.0;
-float Window::metallic = 0.0;
+float Window::alphaX = 0.5;
+float Window::alphaY = 0.5;
 bool Window::glass = false;
 int Window::selectSampleCount = 64;
 
@@ -220,10 +220,8 @@ void Window::Update()
 
     // GUI ´°¿Ú
     ImGui::Begin("Config");
-    float roughness_f = static_cast<float>(roughness);
-    float metallic_f = static_cast<float>(metallic);
-    ImGui::SliderFloat("Roughness", &Window::roughness, 0.0f, 1.0f);
-    ImGui::SliderFloat("Metallic", &Window::metallic, 0.0f, 1.0f);
+    ImGui::SliderFloat("AlphaX", &Window::alphaX, 0.1f, 1.0f);
+    ImGui::SliderFloat("AlphaY", &Window::alphaY, 0.1f, 1.0f);
     ImGui::Checkbox("Glass", &Window::glass);
     ImGui::SliderInt("SampleCount", &Window::selectSampleCount, 1, 512);
     ImGui::End();
@@ -279,6 +277,14 @@ bool Window::PollInput()
         phi += moveSpeed * deltaTime;
         moved = true;
     }
+    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
+        x += 4.0 * moveSpeed * deltaTime;
+        moved = true;
+    }
+    if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) {
+        x -= 4.0 * moveSpeed * deltaTime;
+        moved = true;
+    }
     if (moved)
     {
         camera->move(phi, theta, x);
@@ -313,9 +319,9 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
                 int threadsPerBlock = 1024;
                 int blocks = (obj.endPtr - obj.beginPtr + threadsPerBlock - 1) / threadsPerBlock;
                 changeMaterial << <blocks, threadsPerBlock >> > (Window::scene->device.d_objs, obj.beginPtr, obj.endPtr, 
-                    static_cast<double>(Window::roughness), static_cast<double>(Window::metallic), Window::glass);
+                    static_cast<double>(Window::alphaX), static_cast<double>(Window::alphaY), Window::glass);
                 cudaDeviceSynchronize();
-                std::cout << "Set " << obj.name << " Material to (" << Window::roughness << ", " << Window::metallic << ")" << std::endl;
+                std::cout << "Set " << obj.name << " Material to (" << Window::alphaX << ", " << Window::alphaY << ")" << std::endl;
                 break;
             }
         }

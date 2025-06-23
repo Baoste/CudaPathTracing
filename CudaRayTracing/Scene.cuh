@@ -66,10 +66,12 @@ public:
         // light
         cudaMalloc((void**)&d_lightsIndex, 10 * sizeof(unsigned int));
         addOneLight(make_double3(0.0, 9.99, 0.0), 3.0, 3.0, make_double3(0.0, -1.0, 0.0), make_double3(20.0, 20.0, 20.0), true);
+        addOneLight(make_double3(0.0, 0.0, 9.99), 3.0, 3.0, make_double3(0.0, 0.0, -1.0), make_double3(20.0, 20.0, 20.0), true);
         // addOneLight(make_double3(-2.0, 2.0, -9.9), 2.0, 2.0, make_double3(0.0, 0.0, 1.0), make_double3(20.0, 20.0, 20.0), true);
 
         // sphere
         addOneSphere(make_double3(2.0, 1.0, 2.0), 1.0, make_double3(0.5, 0.4, 0.6));
+        //addOneSphere(make_double3(-2.0, 3.0, -2.0), 1.0, make_double3(1.0, 0.84, 0.0));
 
         // floor
         addFloor(make_double3(-6.0, 0.0, -6.0), make_double3(6.0, 0.0, -6.0), make_double3(-6.0, 0.0, 6.0), make_double3(6.0, 0.0, 6.0), make_double3(0.8, 0.8, 0.8));

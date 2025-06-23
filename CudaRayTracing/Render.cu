@@ -81,7 +81,7 @@ __global__ void render(uchar4* devPtr, const Camera* camera, unsigned int* light
 
             // contribution from other refectors
             // russian roulette
-            double P_RR = 0.9;
+            double P_RR = 0.8;
             if (curand_uniform_double(&state) > P_RR)
                 break;
 
@@ -124,7 +124,7 @@ __global__ void getObject(Hittable* objs, const Camera* camera, Node* internalNo
     }
 }
 
-__global__ void changeMaterial(Hittable* objs, const int start, const int end, const double roughness, const double metallic, const bool glass)
+__global__ void changeMaterial(Hittable* objs, const int start, const int end, const double alphaX, const double alphaY, const bool glass)
 {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < start || idx >= end) return;
@@ -132,13 +132,13 @@ __global__ void changeMaterial(Hittable* objs, const int start, const int end, c
     switch (objs[idx].type)
     {
     case ObjectType::SPHERE:
-        objs[idx].sphere.material.roughness = roughness;
-        objs[idx].sphere.material.metallic = metallic;
+        objs[idx].sphere.material.alphaX = alphaX;
+        objs[idx].sphere.material.alphaY = alphaY;
         objs[idx].sphere.material.glass = glass;
         break;
     case ObjectType::TRIANGLE:
-        objs[idx].triangle.material.roughness = roughness;
-        objs[idx].triangle.material.metallic = metallic;
+        objs[idx].triangle.material.alphaX = alphaX;
+        objs[idx].triangle.material.alphaY = alphaY;
         objs[idx].triangle.material.glass = glass;
         break;
     case ObjectType::LIGHT:

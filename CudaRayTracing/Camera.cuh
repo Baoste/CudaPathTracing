@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Ray.cuh"
+#include <iostream>
 
 class Camera
 {
@@ -41,7 +42,9 @@ public:
         double3 offset = lookFrom - lookAt;
         double focalLength = Length(offset);
         double updateT = acos(offset.y / focalLength);
-        if (updateT < PI - 0.1 && t < 0 || updateT > 0.1 && t > 0)
+        if (focalLength > 5.0 || x > 0.0)
+            focalLength += x;
+        if (updateT < PI - 0.1 && t < 0.0 || updateT > 0.1 && t > 0.0)
             updateT -= t;
         double updateP = atan2(offset.z, offset.x) - p;
         lookFrom = lookAt + make_double3(
