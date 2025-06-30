@@ -20,10 +20,10 @@ public:
 
 public:
     // Load mesh from a file
-    bool loadFromFile(const std::string& filename, const double scale, const double angle = -30.0)
+    bool loadFromFile(const std::string& filename, const double scale, const double rotation = -30.0)
     {
         triangles.clear();
-        loadMesh(filename, triangles, scale, angle);
+        loadMesh(filename, triangles, scale, rotation);
         return !triangles.empty();
     }
 
@@ -38,7 +38,7 @@ public:
     }
 
 private:
-    void loadMesh(const std::string& filename, std::vector<MeshTriangle>& triangles, const double scale, const double angle)
+    void loadMesh(const std::string& filename, std::vector<MeshTriangle>& triangles, const double scale, const double rotation)
     {
         tinyobj::attrib_t attrib;
         std::vector<tinyobj::shape_t> shapes;
@@ -53,7 +53,7 @@ private:
             return;
         }
 
-        double theta = DegreesToRadians(angle);
+        double theta = DegreesToRadians(rotation);
         double cos_theta = cos(theta);
         double sin_theta = sin(theta);
         double3 rotation_x = make_double3(cos_theta, 0.0, sin_theta);

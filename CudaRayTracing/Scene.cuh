@@ -79,7 +79,7 @@ public:
 
         // mesh
         for (auto mesh : parser.meshes)
-            addMeshes(mesh.path, mesh.center, mesh.color, mesh.alphaX, mesh.alphaY, mesh.glass, mesh.scale);
+            addMeshes(mesh.path, mesh.center, mesh.rotation, mesh.scale, mesh.color, mesh.alphaX, mesh.alphaY, mesh.glass);
 
         // cloth
         if (parser.hasCloth)
@@ -186,13 +186,13 @@ public:
         objects.push_back({ "floor", prePtr, afterPtr });
     }
 
-    void addMeshes(const std::string& fileName, double3 position, double3 color, double alphaX, double alphaY, bool glass = false, const double scale = 1.0)
+    void addMeshes(const std::string& fileName, double3 position, double rotation, double scale, double3 color, double alphaX, double alphaY, bool glass = false)
     {
         unsigned int prePtr, afterPtr;
         cudaMemcpy(&prePtr, device.d_objPtr, sizeof(unsigned int), cudaMemcpyDeviceToHost);
 
         Mesh mesh;
-        mesh.loadFromFile(fileName, scale);
+        mesh.loadFromFile(fileName, scale, rotation);
         mesh.transform(position);
         int num = mesh.triangles.size();
         MeshTriangle* d_triangles;

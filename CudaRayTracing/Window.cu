@@ -223,7 +223,7 @@ void Window::Update()
     ImGui::SliderFloat("alphaX", &Window::alphaX, 0.1f, 1.0f);
     ImGui::SliderFloat("alphaY", &Window::alphaY, 0.1f, 1.0f);
     ImGui::Checkbox("isGlass", &Window::glass);
-    ImGui::SliderInt("spp", &Window::selectSampleCount, 1, 512);
+    ImGui::SliderInt("spp", &Window::selectSampleCount, 1, 2048);
     ImGui::End();
 
     // ‰÷»æ

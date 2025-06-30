@@ -135,20 +135,20 @@ __device__ inline int2 determineRange(const unsigned int* mortonCodes, int numOb
     int deltaNext = delta(mortonCodes, numObjects, idx, idx + 1);
     int deltaPrev = delta(mortonCodes, numObjects, idx, idx - 1);        
 
-    // 第 3 行：决定搜索方向
+    // 决定搜索方向
     d = (deltaNext - deltaPrev) > 0 ? 1 : -1;
 
-    // 第 5 行：δmin 是最小公共前缀
+    // δmin 是最小公共前缀
     int deltaMin = delta(mortonCodes, numObjects, idx, idx - d);
 
-    // 第 6-8 行：指数扩展找最大范围
+    // 指数扩展找最大范围
     int lMax = 2;
     while (delta(mortonCodes, numObjects, idx, idx + lMax * d) > deltaMin)
     {
         lMax *= 2;
     }
 
-    // 第 9-14 行：二分查找精确范围端点 j
+    // 二分查找精确范围端点 j
     int l = 0;
     for (int t = lMax / 2; t >= 1; t /= 2)
     {
@@ -210,10 +210,6 @@ __device__ inline void generateHierarchy(Hittable* d_objs, Node* leafNodes, Node
 
         // Determine where to split the range.
         int split = findSplit(sortedMortonCodes, first, last);
-        //if (idx == 30607)
-        //    printf("%d:%d %d:%d %d\n", first, sortedMortonCodes[first], last, sortedMortonCodes[last], split);
-        //if (idx <= 30609 && idx >= 30605)
-        //    printf("%d:%d\n", idx, sortedMortonCodes[idx]);
 
         // Select childA.
         Node* childA;
@@ -229,10 +225,6 @@ __device__ inline void generateHierarchy(Hittable* d_objs, Node* leafNodes, Node
         else
             childB = &internalNodes[split + 1];
 
-        //if ((childA->objectID == 30608) || (childB->objectID == 30608))
-        //    printf("%d - %d[%d] %d[%d]\n", internalNodes[idx].objectID, childA->objectID, childA->isLeaf, childB->objectID, childB->isLeaf);       
-        //if (idx == 30607)
-        //    printf("%d - %d[%d] %d[%d]\n", internalNodes[idx].objectID, childA->objectID, childA->isLeaf, childB->objectID, childB->isLeaf);
         // Record parent-child relationships.
         internalNodes[idx].childA = childA;
         internalNodes[idx].childB = childB;

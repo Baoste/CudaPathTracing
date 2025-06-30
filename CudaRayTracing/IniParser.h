@@ -52,8 +52,9 @@ struct MeshInfo
     double3 color;
     double alphaX, alphaY;
     bool glass;
+    double rotation; 
     double scale; 
-    MeshInfo() : path(""), center{ 0.0, 0.0, 0.0 }, color{ 1.0, 1.0, 1.0 }, alphaX(0.5), alphaY(0.5), glass(false), scale(1.0) {}
+    MeshInfo() : path(""), center{ 0.0, 0.0, 0.0 }, color{ 1.0, 1.0, 1.0 }, alphaX(0.5), alphaY(0.5), glass(false), scale(1.0), rotation(0.0) {}
 };
 
 struct ClothInfo

@@ -72,6 +72,7 @@ void IniParser::Parse(const std::string& filename)
         {
             if (key == "path") meshes.back().path = value;
             else if (key == "center") meshes.back().center = parseVec3(value);
+            else if (key == "rotation") meshes.back().rotation = std::stod(value);
             else if (key == "color") meshes.back().color = parseVec3(value);
             else if (key == "glass") meshes.back().glass = std::stoi(value);
             else if (key == "scale") meshes.back().scale = std::stod(value);
