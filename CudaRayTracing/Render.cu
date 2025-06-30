@@ -35,7 +35,7 @@ __global__ void render(uchar4* devPtr, const Camera* camera, unsigned int* light
         double3 throughput = make_double3(1.0, 1.0, 1.0);  // ÀÛ³Ë fr * cos¦È / pdf
         double3 radiance = make_double3(0.0, 0.0, 0.0);    // final result
         bool firstHit = true;
-        // int depth = 0;
+        int depth = 0;
         while (true) 
         {
             // if no hit, break
@@ -81,12 +81,12 @@ __global__ void render(uchar4* devPtr, const Camera* camera, unsigned int* light
 
             // contribution from other refectors
             // russian roulette
-            double P_RR = 0.8;
+            double P_RR = 0.7;
             if (curand_uniform_double(&state) > P_RR)
                 break;
 
             // depth
-            // if (depth++ > 2) break;
+            //if (depth++ > 0) break;
 
             // randomly choose ONE direction w_i
             double r1 = curand_uniform_double(&state);
@@ -94,7 +94,7 @@ __global__ void render(uchar4* devPtr, const Camera* camera, unsigned int* light
             double pdf;
             record.getSample(ray, direction, pdf, r1, r2);
             throughput *= record.getFr(ray, direction) * Dot(direction, record.normal) / pdf / P_RR;
-            // throughput *= fr * Dot(direction, record.normal) / pdf;
+            //throughput *= record.getFr(ray, direction) * Dot(direction, record.normal) / pdf;
 
             ray = Ray(record.hitPos, direction, 0.0);
             firstHit = false;
@@ -102,6 +102,11 @@ __global__ void render(uchar4* devPtr, const Camera* camera, unsigned int* light
         pixelRadience += radiance;
     }
     pixelRadience /= sampleCount;
+
+    // gamma
+    pixelRadience.x = sqrt(pixelRadience.x);
+    pixelRadience.y = sqrt(pixelRadience.y);
+    pixelRadience.z = sqrt(pixelRadience.z);
     // set color
     unsigned char r = static_cast<unsigned char>(254.99 * CLAMP01(pixelRadience.x));
     unsigned char g = static_cast<unsigned char>(254.99 * CLAMP01(pixelRadience.y));
@@ -126,7 +131,7 @@ __global__ void getObject(Hittable* objs, const Camera* camera, Node* internalNo
 
 __global__ void changeMaterial(Hittable* objs, const int start, const int end, const double alphaX, const double alphaY, const bool glass)
 {
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    int idx = start + blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < start || idx >= end) return;
 
     switch (objs[idx].type)

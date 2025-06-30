@@ -2,22 +2,27 @@
 #include "Window.cuh"
 #include "Render.cuh"
 #include "Hittable.cuh"
+#include "IniParser.h"
 
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "tiny_obj_loader.h"
 
 int main()
 {
-    const int nx = 800;
-    const int ny = static_cast<int>(nx / 16.0 * 9.0);
+    IniParser parser;
+    parser.Parse("C:/Users/59409/source/repos/CudaRayTracing/CudaRayTracing/scene_ini/Scene3.ini");
+
+    int nx = parser.camera.width;
+    int ny = static_cast<int>(nx / 16.0 * 9.0);
     
-    dim3 threads(8, 8);
-    dim3 blocks((nx + 7) / 8, (ny + 7) / 8);
+    const int threadsNum = 16;
+    dim3 threads(threadsNum, threadsNum);
+    dim3 blocks((nx + threadsNum - 1) / threadsNum, (ny + threadsNum - 1) / threadsNum);
     
     Scene scene;
-    scene.init();
+    scene.init(parser);
 
-    Camera camera(nx, 16.0 / 9.0);
+    Camera camera(nx, 16.0 / 9.0, parser.camera.background, parser.camera.lookFrom, parser.camera.lookAt, parser.camera.vFov);
     checkCudaErrors(cudaMemcpy(scene.d_camera, &camera, sizeof(Camera), cudaMemcpyHostToDevice));
 
 
@@ -43,7 +48,9 @@ int main()
                 }
                 render <<< blocks, threads >>> (app.devicePtr, scene.d_camera, scene.d_lightsIndex, scene.device.d_objs, scene.internalNodes, scene.lightsCount, nx, ny, sampleCount, t);
                 checkCudaErrors(cudaDeviceSynchronize());
-                // scene.Update();
+                
+                if (parser.hasCloth)
+                    scene.Update();
             }
 
             app.Update();

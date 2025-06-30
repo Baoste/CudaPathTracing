@@ -18,15 +18,17 @@ inline void check_cuda(cudaError_t result, char const* const func, const char* c
     }
 }
 
+const int MAXTRIANGLE = 200000;
+
 __global__ inline void registerDevice(unsigned int* d_objPtr, unsigned int* d_lightPtr)
 {
     *d_objPtr = 0;  // reset the object pointer
     *d_lightPtr = 0;  // reset the object pointer
 }
 
-__global__ inline void allocateSphereOnDevice(Hittable* d_objs, unsigned int* d_objPtr, double3 center, double r, double3 color)
+__global__ inline void allocateSphereOnDevice(Hittable* d_objs, unsigned int* d_objPtr, double3 center, double r, double3 color, double alphaX, double alphaY)
 {
-    new (&d_objs[(*d_objPtr)++]) Hittable(Sphere(center, r, color));
+    new (&d_objs[(*d_objPtr)++]) Hittable(Sphere(center, r, color, alphaX, alphaY));
 }
 
 __global__ inline void allocateLightOnDevice(Hittable* d_objs, unsigned int* d_objPtr, unsigned int* d_lightsIndex, unsigned int* d_lightPtr, double3 position, double width, double height, double3 normal, double3 color, bool visible = false)
@@ -35,13 +37,13 @@ __global__ inline void allocateLightOnDevice(Hittable* d_objs, unsigned int* d_o
     d_lightsIndex[(*d_lightPtr)++] = (*d_objPtr)++;
 }
 
-__global__ inline void allocateFloorOnDevice(Hittable* d_objs, unsigned int* d_objPtr, double3 lt , double3 rt, double3 lb, double3 rb, double3 color)
+__global__ inline void allocateFloorOnDevice(Hittable* d_objs, unsigned int* d_objPtr, double3 lt , double3 rt, double3 lb, double3 rb, double3 color, double alphaX, double alphaY)
 {
-    new (&d_objs[(*d_objPtr)++]) Hittable(Triangle(lt, lb, rt, color));
-    new (&d_objs[(*d_objPtr)++]) Hittable(Triangle(rt, lb, rb, color));
+    new (&d_objs[(*d_objPtr)++]) Hittable(Triangle(lt, lb, rt, color, alphaX, alphaY));
+    new (&d_objs[(*d_objPtr)++]) Hittable(Triangle(rt, lb, rb, color, alphaX, alphaY));
 }
 
-__global__ inline void allocateMeshesOnDevice(Hittable* d_objs, unsigned int* d_objPtr, MeshTriangle* d_triangles, double3 color, bool glass, const int size)
+__global__ inline void allocateMeshesOnDevice(Hittable* d_objs, unsigned int* d_objPtr, MeshTriangle* d_triangles, double3 color, double alphaX, double alphaY, bool glass, const int size)
 {
     for (int i = 0; i < size; i++)
     {
@@ -50,6 +52,7 @@ __global__ inline void allocateMeshesOnDevice(Hittable* d_objs, unsigned int* d_
             d_triangles[i].p1,
             d_triangles[i].p2,
             color,
+            alphaX, alphaY,
             glass
         ));
     }
@@ -67,14 +70,16 @@ __global__ inline void allocateClothToDevice(Hittable* d_objs, unsigned int* d_o
                 make_double3(d_x[d_idx[quad_id + 0] * 3 + 0], d_x[d_idx[quad_id + 0] * 3 + 1], d_x[d_idx[quad_id + 0] * 3 + 2]),
                 make_double3(d_x[d_idx[quad_id + 1] * 3 + 0], d_x[d_idx[quad_id + 1] * 3 + 1], d_x[d_idx[quad_id + 1] * 3 + 2]),
                 make_double3(d_x[d_idx[quad_id + 2] * 3 + 0], d_x[d_idx[quad_id + 2] * 3 + 1], d_x[d_idx[quad_id + 2] * 3 + 2]),
-                make_double3(0.5, 0.2, 0.1)
+                make_double3(0.5, 0.2, 0.1),
+                0.5, 0.5
             ));
             (*d_objPtr)++;
             new (&d_objs[2 * (i * size + j) + 1 + *d_clothPtr]) Hittable(Triangle(
                 make_double3(d_x[d_idx[quad_id + 3] * 3 + 0], d_x[d_idx[quad_id + 3] * 3 + 1], d_x[d_idx[quad_id + 3] * 3 + 2]),
                 make_double3(d_x[d_idx[quad_id + 4] * 3 + 0], d_x[d_idx[quad_id + 4] * 3 + 1], d_x[d_idx[quad_id + 4] * 3 + 2]),
                 make_double3(d_x[d_idx[quad_id + 5] * 3 + 0], d_x[d_idx[quad_id + 5] * 3 + 1], d_x[d_idx[quad_id + 5] * 3 + 2]),
-                make_double3(0.5, 0.2, 0.1)
+                make_double3(0.5, 0.2, 0.1),
+                0.5, 0.5
             ));
             (*d_objPtr)++;
         }
@@ -92,13 +97,15 @@ __global__ inline void updateClothToDevice(Hittable* d_objs, unsigned int* d_clo
                 make_double3(d_x[d_idx[quad_id + 0] * 3 + 0], d_x[d_idx[quad_id + 0] * 3 + 1], d_x[d_idx[quad_id + 0] * 3 + 2]),
                 make_double3(d_x[d_idx[quad_id + 1] * 3 + 0], d_x[d_idx[quad_id + 1] * 3 + 1], d_x[d_idx[quad_id + 1] * 3 + 2]),
                 make_double3(d_x[d_idx[quad_id + 2] * 3 + 0], d_x[d_idx[quad_id + 2] * 3 + 1], d_x[d_idx[quad_id + 2] * 3 + 2]),
-                make_double3(0.5, 0.2, 0.1)
+                make_double3(0.5, 0.2, 0.1),
+                0.5, 0.5
             ));
             new (&d_objs[2 * (i * size + j) + 1 + *d_clothPtr]) Hittable(Triangle(
                 make_double3(d_x[d_idx[quad_id + 3] * 3 + 0], d_x[d_idx[quad_id + 3] * 3 + 1], d_x[d_idx[quad_id + 3] * 3 + 2]),
                 make_double3(d_x[d_idx[quad_id + 4] * 3 + 0], d_x[d_idx[quad_id + 4] * 3 + 1], d_x[d_idx[quad_id + 4] * 3 + 2]),
                 make_double3(d_x[d_idx[quad_id + 5] * 3 + 0], d_x[d_idx[quad_id + 5] * 3 + 1], d_x[d_idx[quad_id + 5] * 3 + 2]),
-                make_double3(0.5, 0.2, 0.1)
+                make_double3(0.5, 0.2, 0.1),
+                0.5, 0.5
             ));
         }
     }
@@ -131,7 +138,7 @@ public:
 public:
     Device()
     {
-        cudaMalloc((void**)&d_objs, 100000 * sizeof(Hittable));
+        cudaMalloc((void**)&d_objs, MAXTRIANGLE * sizeof(Hittable));
         cudaMalloc((void**)&d_objPtr, sizeof(unsigned int));
         cudaMalloc((void**)&d_lightPtr, sizeof(unsigned int));
         cudaMalloc((void**)&d_clothPtr, sizeof(unsigned int));

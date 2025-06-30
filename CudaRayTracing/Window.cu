@@ -158,7 +158,7 @@ bool Window::Init()
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    window = glfwCreateWindow(width, height, "CUDA + OpenGL", nullptr, nullptr);
+    window = glfwCreateWindow(width, height, "CUDA Path Tracing", nullptr, nullptr);
     if (!window)
     {
         glfwTerminate();
@@ -220,10 +220,10 @@ void Window::Update()
 
     // GUI ´°¿Ú
     ImGui::Begin("Config");
-    ImGui::SliderFloat("AlphaX", &Window::alphaX, 0.1f, 1.0f);
-    ImGui::SliderFloat("AlphaY", &Window::alphaY, 0.1f, 1.0f);
-    ImGui::Checkbox("Glass", &Window::glass);
-    ImGui::SliderInt("SampleCount", &Window::selectSampleCount, 1, 512);
+    ImGui::SliderFloat("alphaX", &Window::alphaX, 0.1f, 1.0f);
+    ImGui::SliderFloat("alphaY", &Window::alphaY, 0.1f, 1.0f);
+    ImGui::Checkbox("isGlass", &Window::glass);
+    ImGui::SliderInt("spp", &Window::selectSampleCount, 1, 512);
     ImGui::End();
 
     // äÖÈ¾
@@ -316,12 +316,12 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
             if (selectPtr >= obj.beginPtr && selectPtr < obj.endPtr)
             {
                 // change material
-                int threadsPerBlock = 1024;
+                int threadsPerBlock = 512;
                 int blocks = (obj.endPtr - obj.beginPtr + threadsPerBlock - 1) / threadsPerBlock;
                 changeMaterial << <blocks, threadsPerBlock >> > (Window::scene->device.d_objs, obj.beginPtr, obj.endPtr, 
                     static_cast<double>(Window::alphaX), static_cast<double>(Window::alphaY), Window::glass);
                 cudaDeviceSynchronize();
-                std::cout << "Set " << obj.name << " Material to (" << Window::alphaX << ", " << Window::alphaY << ")" << std::endl;
+                std::cout << "Set " << obj.name << " Material [" << obj.beginPtr << ", " << obj.endPtr << "]" << std::endl;
                 break;
             }
         }

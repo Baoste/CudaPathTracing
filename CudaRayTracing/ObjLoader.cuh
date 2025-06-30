@@ -20,10 +20,10 @@ public:
 
 public:
     // Load mesh from a file
-    bool loadFromFile(const std::string& filename, const double scale)
+    bool loadFromFile(const std::string& filename, const double scale, const double angle = -30.0)
     {
         triangles.clear();
-        loadMesh(filename, triangles, scale);
+        loadMesh(filename, triangles, scale, angle);
         return !triangles.empty();
     }
 
@@ -38,7 +38,7 @@ public:
     }
 
 private:
-    void loadMesh(const std::string& filename, std::vector<MeshTriangle>& triangles, const double scale)
+    void loadMesh(const std::string& filename, std::vector<MeshTriangle>& triangles, const double scale, const double angle)
     {
         tinyobj::attrib_t attrib;
         std::vector<tinyobj::shape_t> shapes;
@@ -52,6 +52,13 @@ private:
             std::cerr << err << std::endl;
             return;
         }
+
+        double theta = DegreesToRadians(angle);
+        double cos_theta = cos(theta);
+        double sin_theta = sin(theta);
+        double3 rotation_x = make_double3(cos_theta, 0.0, sin_theta);
+        double3 rotation_y = make_double3(0.0, 1.0, 0.0);
+        double3 rotation_z = make_double3(-sin_theta, 0.0, cos_theta);
 
         for (const auto& shape : shapes) 
         {
@@ -68,7 +75,11 @@ private:
                     double x = attrib.vertices[3 * vidx + 0];
                     double y = attrib.vertices[3 * vidx + 1];
                     double z = attrib.vertices[3 * vidx + 2];
-                    double3 p = make_double3(x, y, z) * scale;
+                    double3 p = make_double3(x, y, z);
+                    x = Dot(p, rotation_x);
+                    y = Dot(p, rotation_y);
+                    z = Dot(p, rotation_z);
+                    p = make_double3(x, y, z) * scale;
 
                     if (v == 0) tri.p0 = p;
                     else if (v == 1) tri.p1 = p;

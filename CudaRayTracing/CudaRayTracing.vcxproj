@@ -87,6 +87,7 @@
     <CudaCompile Include="Render.cu" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="IniParser.cpp" />
     <CudaCompile Include="Camera.cu">
       <FileType>Document</FileType>
     </CudaCompile>
@@ -128,6 +129,7 @@
     <ClInclude Include="Render.cuh" />
     <ClInclude Include="rtmath.cuh" />
     <ClInclude Include="Hittable.cuh" />
+    <ClInclude Include="IniParser.h" />
     <ClInclude Include="tiny_obj_loader.h" />
     <ClInclude Include="Window.cuh" />
   </ItemGroup>

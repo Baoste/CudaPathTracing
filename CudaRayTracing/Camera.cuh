@@ -6,20 +6,20 @@
 class Camera
 {
 public:
-    Camera(int _width, double _aspectRatio);
-    //Color background = make_double3(0.2, 0.3, 0.5);
-    Color background = make_double3(0.0, 0.0, 0.0);
-    double aspectRatio = 16.0 / 9.0;
-    int width = 640;
-    int height = 1;
-    int samplesPerPixel = 20;
-    int maxDepth = 20;
+    Camera(int _width, double _aspectRatio, Color _background, double3 _lookFrom, double3 _lookAt, double _vFov);
 
-    double3 lookFrom = make_double3(0, 3, 8);
-    double3 lookAt = make_double3(0, 0, 0);
+    Color background;
+    double aspectRatio;
+    int width;
+    int height = 1;
+    int samplesPerPixel = 1;
+    int maxDepth = 1;
+
+    double3 lookFrom;
+    double3 lookAt;
     double3 vUp = make_double3(0, 1, 0);
     // angel
-    double vFov = 90.0;
+    double vFov;
 
     double3 u, v, w;
 

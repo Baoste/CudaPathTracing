@@ -6,6 +6,7 @@
 #include "Device.cuh"
 #include "Cloth.cuh"
 #include "PhysicsAcc.cuh"
+#include "IniParser.h"
 
 struct Object
 {
@@ -61,50 +62,59 @@ public:
         cudaFree(d_camera);
     }
 
-    void init()
+    void init(const IniParser& parser)
     {
         // light
         cudaMalloc((void**)&d_lightsIndex, 10 * sizeof(unsigned int));
-        addOneLight(make_double3(0.0, 9.99, 0.0), 3.0, 3.0, make_double3(0.0, -1.0, 0.0), make_double3(20.0, 20.0, 20.0), true);
-        addOneLight(make_double3(0.0, 0.0, 9.99), 3.0, 3.0, make_double3(0.0, 0.0, -1.0), make_double3(20.0, 20.0, 20.0), true);
-        // addOneLight(make_double3(-2.0, 2.0, -9.9), 2.0, 2.0, make_double3(0.0, 0.0, 1.0), make_double3(20.0, 20.0, 20.0), true);
+        for (auto light : parser.lights)
+            addOneLight(light.center, light.width, light.height, light.normal, light.color, true);
 
         // sphere
-        addOneSphere(make_double3(2.0, 1.0, 2.0), 1.0, make_double3(0.5, 0.4, 0.6));
-        //addOneSphere(make_double3(-2.0, 3.0, -2.0), 1.0, make_double3(1.0, 0.84, 0.0));
+        for (auto sphere : parser.spheres)
+            addOneSphere(sphere.center, sphere.radius, sphere.color, sphere.alphaX, sphere.alphaY);
 
         // floor
-        addFloor(make_double3(-6.0, 0.0, -6.0), make_double3(6.0, 0.0, -6.0), make_double3(-6.0, 0.0, 6.0), make_double3(6.0, 0.0, 6.0), make_double3(0.8, 0.8, 0.8));
-        addFloor(make_double3(-6.0, 10.0, -6.0), make_double3(6.0, 10.0, -6.0), make_double3(-6.0, 0.0, -6.0), make_double3(6.0, 0.0, -6.0), make_double3(0.8, 0.8, 0.8));
-        addFloor(make_double3(-6.0, 10.0, 6.0), make_double3(-6.0, 10.0, -6.0), make_double3(-6.0, 0.0, 6.0), make_double3(-6.0, 0.0, -6.0), make_double3(0.2, 0.8, 0.1));
-        addFloor(make_double3(6.0, 10.0, -6.0), make_double3(6.0, 10.0, 6.0), make_double3(6.0, 0.0, -6.0), make_double3(6.0, 0.0, 6.0), make_double3(0.1, 0.2, 0.8));
-        addFloor(make_double3(-6.0, 10.0, 6.0), make_double3(6.0, 10.0, 6.0), make_double3(-6.0, 10.0, -6.0), make_double3(6.0, 10.0, -6.0), make_double3(0.8, 0.8, 0.8));
+        for (auto floor : parser.floors)
+            addFloor(floor.lt, floor.rt, floor.lb, floor.rb, floor.color, floor.alphaX, floor.alphaY);
 
         // mesh
-        addMeshes("C:/Users/59409/Downloads/teapot.obj", make_double3(-2.0, 0.0, 2.0), make_double3(0.8, 0.8, 0.8), true, 0.7);
-        addMeshes("C:/Users/59409/Downloads/bun_zipper.ply.obj", make_double3(-1.0, -0.6, -1.0), make_double3(0.8, 0.8, 0.8), false, 20.0);
+        for (auto mesh : parser.meshes)
+            addMeshes(mesh.path, mesh.center, mesh.color, mesh.alphaX, mesh.alphaY, mesh.glass, mesh.scale);
 
-        cudaMalloc((void**)&d_mortonsExceptCloth, allCount * sizeof(unsigned int));
-        cudaMalloc((void**)&d_objIdxExceptCloth, allCount * sizeof(unsigned int));
-        cudaMalloc((void**)&leafNodesExceptCloth, allCount * sizeof(Node));
-        cudaMalloc((void**)&internalNodesExceptCloth, (allCount - 1) * sizeof(Node));
-        device.buildBVH(device.d_objs, leafNodesExceptCloth, internalNodesExceptCloth, d_mortonsExceptCloth, d_objIdxExceptCloth, allCount);
-        checkCudaErrors(cudaDeviceSynchronize());
-
-        // allocate cloth triangles to device
-        addCloth();
-
-        cudaMalloc((void**)&d_mortons, allCount * sizeof(unsigned int));
-        cudaMalloc((void**)&d_objIdx, allCount * sizeof(unsigned int));
-        cudaMalloc((void**)&internalNodes, (allCount - 1) * sizeof(Node));
-        cudaMalloc((void**)&leafNodes, allCount * sizeof(Node));
-
-        double simTime = 1.6;
-        printf("Start sim physics for %f seconds...\n", simTime);
-        while (cloth.simTime < simTime)
+        // cloth
+        if (parser.hasCloth)
         {
-            Update();
-            // break;
+            cudaMalloc((void**)&d_mortonsExceptCloth, allCount * sizeof(unsigned int));
+            cudaMalloc((void**)&d_objIdxExceptCloth, allCount * sizeof(unsigned int));
+            cudaMalloc((void**)&leafNodesExceptCloth, allCount * sizeof(Node));
+            cudaMalloc((void**)&internalNodesExceptCloth, (allCount - 1) * sizeof(Node));
+            device.buildBVH(device.d_objs, leafNodesExceptCloth, internalNodesExceptCloth, d_mortonsExceptCloth, d_objIdxExceptCloth, allCount);
+            checkCudaErrors(cudaDeviceSynchronize());
+
+            // allocate cloth triangles to device
+            addCloth();
+            cudaMalloc((void**)&d_mortons, allCount * sizeof(unsigned int));
+            cudaMalloc((void**)&d_objIdx, allCount * sizeof(unsigned int));
+            cudaMalloc((void**)&internalNodes, (allCount - 1) * sizeof(Node));
+            cudaMalloc((void**)&leafNodes, allCount * sizeof(Node));
+
+            double simTime = 1.6;
+            printf("Start sim physics for %f seconds...\n", simTime);
+            while (cloth.simTime < simTime)
+            {
+                Update();
+                break;
+            }
+        }
+        else
+        {
+            cudaMalloc((void**)&d_mortons, allCount * sizeof(unsigned int));
+            cudaMalloc((void**)&d_objIdx, allCount * sizeof(unsigned int));
+            cudaMalloc((void**)&internalNodes, (allCount - 1) * sizeof(Node));
+            cudaMalloc((void**)&leafNodes, allCount * sizeof(Node));
+
+            device.buildBVH(device.d_objs, leafNodes, internalNodes, d_mortons, d_objIdx, allCount);
+            checkCudaErrors(cudaDeviceSynchronize());
         }
     }
 
@@ -150,11 +160,11 @@ public:
         objects.push_back({ "light", prePtr, afterPtr });
     }
 
-    void addOneSphere(double3 position, double radius, double3 color)
+    void addOneSphere(double3 position, double radius, double3 color, double alphaX, double alphaY)
     {
         unsigned int prePtr, afterPtr;
         cudaMemcpy(&prePtr, device.d_objPtr, sizeof(unsigned int), cudaMemcpyDeviceToHost);
-        allocateSphereOnDevice << < 1, 1 >> > (device.d_objs, device.d_objPtr, position, radius, color);
+        allocateSphereOnDevice << < 1, 1 >> > (device.d_objs, device.d_objPtr, position, radius, color, alphaX, alphaY);
         checkCudaErrors(cudaDeviceSynchronize());
         cudaMemcpy(&afterPtr, device.d_objPtr, sizeof(unsigned int), cudaMemcpyDeviceToHost);
         allCount++;
@@ -163,11 +173,11 @@ public:
         objects.push_back({ "sphere", prePtr, afterPtr });
     }
 
-    void addFloor(double3 lt, double3 rt, double3 lb, double3 rb, double3 color)
+    void addFloor(double3 lt, double3 rt, double3 lb, double3 rb, double3 color, double alphaX, double alphaY)
     {
         unsigned int prePtr, afterPtr;
         cudaMemcpy(&prePtr, device.d_objPtr, sizeof(unsigned int), cudaMemcpyDeviceToHost);
-        allocateFloorOnDevice << < 1, 1 >> > (device.d_objs, device.d_objPtr, lt, rt, lb, rb, color);
+        allocateFloorOnDevice << < 1, 1 >> > (device.d_objs, device.d_objPtr, lt, rt, lb, rb, color, alphaX, alphaY);
         checkCudaErrors(cudaDeviceSynchronize());
         cudaMemcpy(&afterPtr, device.d_objPtr, sizeof(unsigned int), cudaMemcpyDeviceToHost);
         allCount += 2;
@@ -176,7 +186,7 @@ public:
         objects.push_back({ "floor", prePtr, afterPtr });
     }
 
-    void addMeshes(const std::string& fileName, double3 position, double3 color, bool glass = false, const double scale = 1.0)
+    void addMeshes(const std::string& fileName, double3 position, double3 color, double alphaX, double alphaY, bool glass = false, const double scale = 1.0)
     {
         unsigned int prePtr, afterPtr;
         cudaMemcpy(&prePtr, device.d_objPtr, sizeof(unsigned int), cudaMemcpyDeviceToHost);
@@ -188,7 +198,7 @@ public:
         MeshTriangle* d_triangles;
         cudaMalloc((void**)&d_triangles, num * sizeof(MeshTriangle));
         cudaMemcpy(d_triangles, mesh.triangles.data(), num * sizeof(MeshTriangle), cudaMemcpyHostToDevice);
-        allocateMeshesOnDevice << < 1, 1 >> > (device.d_objs, device.d_objPtr, d_triangles, color, glass, num);
+        allocateMeshesOnDevice << < 1, 1 >> > (device.d_objs, device.d_objPtr, d_triangles, color, alphaX, alphaY, glass, num);
         checkCudaErrors(cudaDeviceSynchronize());
         cudaMemcpy(&afterPtr, device.d_objPtr, sizeof(unsigned int), cudaMemcpyDeviceToHost);
         allCount += num;

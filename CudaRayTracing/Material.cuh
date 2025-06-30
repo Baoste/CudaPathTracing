@@ -16,8 +16,8 @@ public:
         : color(make_double3(0.0, 0.0, 0.0)), alphaX(0.5), alphaY(0.5), glass(false)
     {
     }
-    __host__ __device__ Material(const double3 _color, bool _glass = false)
-        : color(_color), alphaX(0.5), alphaY(0.5), glass(_glass)
+    __host__ __device__ Material(const double3 _color, double _alphaX, double _alphaY, bool _glass = false)
+        : color(_color), alphaX(_alphaX), alphaY(_alphaY), glass(_glass)
     {
     }
     __host__ __device__ double3 fr(const Ray& ray, const double3 normal, const double3 direction, bool frontFace)
@@ -37,7 +37,7 @@ public:
             //double specular = ((1.0 - F) * refRatio * refRatio) / (denominator * denominator);
             //return  specular * make_double3(1.0, 1.0, 1.0);
             double cosTheta_t = fabs(Dot(normal, L));
-            return  make_double3(1.0, 1.0, 1.0) / cosTheta_t;
+            return  color / cosTheta_t;
         }
         else
         {
@@ -149,9 +149,9 @@ private:
     __host__ __device__ double3 worldToLocal(double3 N, double3 W)
     {
         double3 zAxis = N;
-        double3 up = make_double3(0.0, 0.0, 1.0);
+        double3 up = make_double3(0.0, 1.0, 0.0);
         if (fabs(Dot(zAxis, up)) > 0.999f)
-            up = make_double3(0.0, 1.0, 0.0);
+            up = make_double3(1.0, 0.0, 0.0);
         double3 xAxis = Unit(Cross(up, zAxis));
         double3 yAxis = Cross(zAxis, xAxis);
 

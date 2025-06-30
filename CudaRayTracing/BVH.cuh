@@ -23,8 +23,8 @@ __device__ inline unsigned int expandBits(unsigned int v)
 __device__ inline unsigned int morton3D(double3 v)
 {
     // normalize
-    double3 sceneMin = make_double3(-4.0, -1.0, -4.0);
-    double3 sceneMax = make_double3(4.0, 4.0, 4.0);
+    double3 sceneMin = make_double3(-6.0, -4.1, -6.0);
+    double3 sceneMax = make_double3(6.0, 4.0, 6.0);
     double3 normalized;
 
     normalized.x = (v.x - sceneMin.x) / (sceneMax.x - sceneMin.x);
@@ -49,6 +49,7 @@ struct Node
     AABB aabb;
     Node* childA = NULL;
     Node* childB = NULL;
+    int visited = 0;
 };
 
 // checks if the ray intersects the AABB
@@ -132,7 +133,7 @@ __device__ inline int2 determineRange(const unsigned int* mortonCodes, int numOb
 {
     int d = 0;
     int deltaNext = delta(mortonCodes, numObjects, idx, idx + 1);
-    int deltaPrev = delta(mortonCodes, numObjects, idx, idx - 1);
+    int deltaPrev = delta(mortonCodes, numObjects, idx, idx - 1);        
 
     // 第 3 行：决定搜索方向
     d = (deltaNext - deltaPrev) > 0 ? 1 : -1;
@@ -159,20 +160,9 @@ __device__ inline int2 determineRange(const unsigned int* mortonCodes, int numOb
 
     int j = idx + l * d;
 
-    // 第 15-21 行：找到子节点的划分点 γ（split point）
-    int deltaNode = delta(mortonCodes, numObjects, idx, j);
-    int s = 0;
-    int span = abs(j - idx);
-
-    for (int t = (span + 1) / 2; t >= 1; t /= 2)
-    {
-        if (delta(mortonCodes, numObjects, idx, idx + (s + t) * d) > deltaNode)
-        {
-            s += t;
-        }
-    }
-
-    int gamma = idx + s * d + mMin(d, 0);
+    // ! IMPORTANT, avoid that same morton codes lead to first == last
+    if (l == 0)
+        j = idx + d;
 
     // 返回区间 [first, last]
     int first = mMin(idx, j);
@@ -204,25 +194,28 @@ __device__ inline void generateHierarchy(Hittable* d_objs, Node* leafNodes, Node
     {
         internalNodes[idx].isLeaf = false;
         internalNodes[idx].objectID = idx;
+        internalNodes[idx].childA = NULL;
+        internalNodes[idx].childB = NULL;
+        internalNodes[idx].visited = 0;
     }
 
     // Construct internal nodes.
-
     for (int idx = 0; idx < num - 1; idx++)
     {
         // Find out which range of objects the node corresponds to.
         // (This is where the magic happens!)
-
         int2 range = determineRange(sortedMortonCodes, num, idx);
         int first = range.x;
         int last = range.y;
 
         // Determine where to split the range.
-
         int split = findSplit(sortedMortonCodes, first, last);
+        //if (idx == 30607)
+        //    printf("%d:%d %d:%d %d\n", first, sortedMortonCodes[first], last, sortedMortonCodes[last], split);
+        //if (idx <= 30609 && idx >= 30605)
+        //    printf("%d:%d\n", idx, sortedMortonCodes[idx]);
 
         // Select childA.
-
         Node* childA;
         if (split == first)
             childA = &leafNodes[split];
@@ -230,17 +223,21 @@ __device__ inline void generateHierarchy(Hittable* d_objs, Node* leafNodes, Node
             childA = &internalNodes[split];
 
         // Select childB.
-
         Node* childB;
         if (split + 1 == last)
             childB = &leafNodes[split + 1];
         else
             childB = &internalNodes[split + 1];
 
+        //if ((childA->objectID == 30608) || (childB->objectID == 30608))
+        //    printf("%d - %d[%d] %d[%d]\n", internalNodes[idx].objectID, childA->objectID, childA->isLeaf, childB->objectID, childB->isLeaf);       
+        //if (idx == 30607)
+        //    printf("%d - %d[%d] %d[%d]\n", internalNodes[idx].objectID, childA->objectID, childA->isLeaf, childB->objectID, childB->isLeaf);
         // Record parent-child relationships.
-
         internalNodes[idx].childA = childA;
         internalNodes[idx].childB = childB;
+        childA->visited = 1;
+        childB->visited = 1;
 
         //printf("Node %d / %d: AABB = %d(%d) - %d(%d)\n",
         //    internalNodes[idx].objectID,
@@ -254,7 +251,7 @@ __device__ inline void generateHierarchy(Hittable* d_objs, Node* leafNodes, Node
 
     // construct AABB
 
-    Node* stack[256];
+    Node* stack[512];
     Node** stackPtr = stack;
     Node* cur = internalNodes;
     int p_max = 0;
@@ -263,11 +260,12 @@ __device__ inline void generateHierarchy(Hittable* d_objs, Node* leafNodes, Node
 
     while (cur != NULL || stackPtr != stack)
     {
+
         while (cur != NULL)
         {
             *stackPtr++ = cur;
-            p_max = mMax(p_max, ++p);
             cur = cur->childA;
+            p_max = mMax(p_max, ++p);
         }
         cur = *--stackPtr;
         p--;
@@ -276,10 +274,6 @@ __device__ inline void generateHierarchy(Hittable* d_objs, Node* leafNodes, Node
             if (!cur->isLeaf)
             {
                 cur->aabb = AABB(cur->childA->aabb, cur->childB->aabb);
-                //printf("Node %d: AABB = [%f, %f, %f] - [%f, %f, %f]\n",
-                //    cur->objectID,
-                //    cur->aabb.min.x, cur->aabb.min.y, cur->aabb.min.z,
-                //    cur->aabb.max.x, cur->aabb.max.y, cur->aabb.max.z);
             }
             pre = cur;
             cur = NULL;
@@ -287,12 +281,12 @@ __device__ inline void generateHierarchy(Hittable* d_objs, Node* leafNodes, Node
         else
         {
             *stackPtr++ = cur;
-            p_max = mMax(p_max, ++p);
             cur = cur->childB;
+            p_max = mMax(p_max, ++p);
         }
         //printf("max = %d\n", p_max);
     }
-    //printf("max = %d\n", p_max);
+    printf("max = %d\n", p_max);
 
 }
 

@@ -16,11 +16,11 @@ public:
 
 public:
     __host__ __device__ Sphere()
-        : center(make_double3(0.0, 0.0, 0.0)), radius(1.0), material(make_double3(1.0, 1.0, 1.0))
+        : center(make_double3(0.0, 0.0, 0.0)), radius(1.0), material(make_double3(1.0, 1.0, 1.0), 0.5, 0.5)
     {
     }
-    __host__ __device__ Sphere(const double3 _center, double _radius, double3 color, bool glass = false)
-        : center(_center), radius(_radius), material(color, glass)
+    __host__ __device__ Sphere(const double3 _center, double _radius, double3 color, double alphaX, double alphaY, bool glass = false)
+        : center(_center), radius(_radius), material(color, alphaX, alphaY, glass)
     {
     }
     __host__ __device__ ~Sphere() {}
@@ -61,8 +61,8 @@ public:
     Material material;
 
 public:
-    __host__ __device__ Triangle(const double3 _p0, const double3 _p1, const double3 _p2, const double3 color, bool glass = false)
-        : p0(_p0), p1(_p1), p2(_p2), material(color, glass)
+    __host__ __device__ Triangle(const double3 _p0, const double3 _p1, const double3 _p2, const double3 color, double alphaX, double alphaY, bool glass = false)
+        : p0(_p0), p1(_p1), p2(_p2), material(color, alphaX, alphaY, glass)
     {
         center = (p0 + p1 + p2) / 3.0;
         normal = Unit(Cross(p1 - p0, p2 - p0));
