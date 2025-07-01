@@ -12,10 +12,18 @@ struct MeshTriangle
     double3 p2;
 };
 
+struct MeshUV
+{
+    double2 p0;
+    double2 p1;
+    double2 p2;
+};
+
 class Mesh
 {
 public:
     std::vector<MeshTriangle> triangles;
+    std::vector<MeshUV> uvs;
     Mesh() = default;
 
 public:
@@ -68,7 +76,10 @@ private:
                 if (fv != 3) continue;
 
                 MeshTriangle tri;
-                for (size_t v = 0; v < 3; v++) {
+                MeshUV muv;
+
+                for (size_t v = 0; v < 3; v++) 
+                {
                     tinyobj::index_t idx = shape.mesh.indices[index_offset + v];
                     int vidx = idx.vertex_index;
 
@@ -76,6 +87,8 @@ private:
                     double y = attrib.vertices[3 * vidx + 1];
                     double z = attrib.vertices[3 * vidx + 2];
                     double3 p = make_double3(x, y, z);
+                    
+                    // rotate and scale
                     x = Dot(p, rotation_x);
                     y = Dot(p, rotation_y);
                     z = Dot(p, rotation_z);
@@ -84,8 +97,29 @@ private:
                     if (v == 0) tri.p0 = p;
                     else if (v == 1) tri.p1 = p;
                     else if (v == 2) tri.p2 = p;
+                    
+                    // UV
+                    int tidx = idx.texcoord_index;
+                    if (tidx >= 0)
+                    {
+                        double uu = attrib.texcoords[2 * tidx + 0];
+                        double vv = attrib.texcoords[2 * tidx + 1];
+                        double2 uv_p = make_double2(uu, vv);
+                        if (v == 0) muv.p0 = uv_p;
+                        else if (v == 1) muv.p1 = uv_p;
+                        else if (v == 2) muv.p2 = uv_p;
+                    }
+                    else
+                    {
+                        if (v == 0) muv.p0 = make_double2(0.0, 0.0);
+                        else if (v == 1) muv.p1 = make_double2(0.0, 0.0);
+                        else if (v == 2) muv.p2 = make_double2(0.0, 0.0);
+                    }
                 }
+
                 triangles.push_back(tri);
+                uvs.push_back(muv);
+
                 index_offset += fv;
             }
         }

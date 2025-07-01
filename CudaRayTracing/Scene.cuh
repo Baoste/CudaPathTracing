@@ -7,6 +7,7 @@
 #include "Cloth.cuh"
 #include "PhysicsAcc.cuh"
 #include "IniParser.h"
+#include "stb_image.h"
 
 struct Object
 {
@@ -79,7 +80,7 @@ public:
 
         // mesh
         for (auto mesh : parser.meshes)
-            addMeshes(mesh.path, mesh.center, mesh.rotation, mesh.scale, mesh.color, mesh.alphaX, mesh.alphaY, mesh.glass);
+            addMeshes(mesh.path, mesh.texture, mesh.center, mesh.rotation, mesh.scale, mesh.color, mesh.alphaX, mesh.alphaY, mesh.glass);
 
         // cloth
         if (parser.hasCloth)
@@ -186,7 +187,24 @@ public:
         objects.push_back({ "floor", prePtr, afterPtr });
     }
 
-    void addMeshes(const std::string& fileName, double3 position, double rotation, double scale, double3 color, double alphaX, double alphaY, bool glass = false)
+    //void addBzeier(const double3 p0, const double3 p1, const double3 p2, const double3 p3,
+    //    const double3 p4, const double3 p5, const double3 p6, const double3 p7,
+    //    const double3 p8, const double3 p9, const double3 p10, const double3 p11,
+    //    const double3 p12, const double3 p13, const double3 p14, const double3 p15,
+    //    const double3 color, double alphaX, double alphaY)
+    //{
+    //    unsigned int prePtr, afterPtr;
+    //    cudaMemcpy(&prePtr, device.d_objPtr, sizeof(unsigned int), cudaMemcpyDeviceToHost);
+    //    allocateBzeierOnDevice << < 1, 1 >> > (device.d_objs, device.d_objPtr, p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, color, alphaX, alphaY);
+    //    checkCudaErrors(cudaDeviceSynchronize());
+    //    cudaMemcpy(&afterPtr, device.d_objPtr, sizeof(unsigned int), cudaMemcpyDeviceToHost);
+    //    allCount ++;
+
+    //    printf("Allocate Floor [%d:%d) on device...\n", prePtr, afterPtr);
+    //    objects.push_back({ "floor", prePtr, afterPtr });
+    //}
+
+    void addMeshes(const std::string& fileName, const std::string& texture, double3 position, double rotation, double scale, double3 color, double alphaX, double alphaY, bool glass = false)
     {
         unsigned int prePtr, afterPtr;
         cudaMemcpy(&prePtr, device.d_objPtr, sizeof(unsigned int), cudaMemcpyDeviceToHost);
@@ -195,11 +213,27 @@ public:
         mesh.loadFromFile(fileName, scale, rotation);
         mesh.transform(position);
         int num = mesh.triangles.size();
+
+        // load texture img
+        int width, height, channels;
+        unsigned char* image = stbi_load(texture.c_str(), &width, &height, &channels, 0);
+        unsigned char* d_image = NULL;
+        if (image) 
+        {
+            size_t img_size = width * height * channels * sizeof(unsigned char);
+            cudaMalloc(&d_image, img_size);
+            cudaMemcpy(d_image, image, img_size, cudaMemcpyHostToDevice);
+        }
+
         MeshTriangle* d_triangles;
+        MeshUV* d_uvs;
         cudaMalloc((void**)&d_triangles, num * sizeof(MeshTriangle));
+        cudaMalloc((void**)&d_uvs, num * sizeof(MeshUV));
         cudaMemcpy(d_triangles, mesh.triangles.data(), num * sizeof(MeshTriangle), cudaMemcpyHostToDevice);
-        allocateMeshesOnDevice << < 1, 1 >> > (device.d_objs, device.d_objPtr, d_triangles, color, alphaX, alphaY, glass, num);
+        cudaMemcpy(d_uvs, mesh.uvs.data(), num * sizeof(MeshUV), cudaMemcpyHostToDevice);
+        allocateMeshesOnDevice << < 1, 1 >> > (device.d_objs, device.d_objPtr, d_triangles, d_image, width, height, channels, d_uvs, color, alphaX, alphaY, glass, num);
         checkCudaErrors(cudaDeviceSynchronize());
+
         cudaMemcpy(&afterPtr, device.d_objPtr, sizeof(unsigned int), cudaMemcpyDeviceToHost);
         allCount += num;
 

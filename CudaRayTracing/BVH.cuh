@@ -286,7 +286,7 @@ __device__ inline int traverseIterative(Node* internalNodes, Hittable* objs, con
 {
     // Allocate traversal stack from thread-local memory,
     // and push NULL to indicate that there are no postponed nodes.
-    Node* stack[256];
+    Node* stack[512];
     Node** stackPtr = stack;
     *stackPtr++ = NULL; // push
 
@@ -307,13 +307,13 @@ __device__ inline int traverseIterative(Node* internalNodes, Hittable* objs, con
 
         // Query overlaps a leaf node => report collision.
         if (overlapL && childL->isLeaf)
-            if (objs[childL->objectID].hit(ray, tempRecord, 0.01, hitId >= 0 ? record.t : INF))
+            if (objs[childL->objectID].hit(ray, tempRecord, 0.001, hitId >= 0 ? record.t : INF))
             { 
                 hitId = childL->objectID;
                 record = tempRecord;
             }
         if (overlapR && childR->isLeaf)
-            if (objs[childR->objectID].hit(ray, tempRecord, 0.01, hitId >= 0 ? record.t : INF))
+            if (objs[childR->objectID].hit(ray, tempRecord, 0.001, hitId >= 0 ? record.t : INF))
             {
                 hitId = childR->objectID;
                 record = tempRecord;

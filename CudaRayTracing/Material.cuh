@@ -20,6 +20,15 @@ public:
         : color(_color), alphaX(_alphaX), alphaY(_alphaY), glass(_glass)
     {
     }
+    __host__ __device__ void sampleTexture(const unsigned char* texture, const double width, const double height, const double uu, const double vv)
+    {
+        if (texture == NULL)
+            return;
+        int x = mMin(mMax(int(uu * width), 0), width - 1);
+        int y = mMin(mMax(int(vv * height), 0), height - 1);
+        int idx = (y * width + x) * 3;
+        color = make_double3(texture[idx] / 255.0, texture[idx + 1] / 255.0, texture[idx + 2] / 255.0);
+    }
     __host__ __device__ double3 fr(const Ray& ray, const double3 normal, const double3 direction, bool frontFace)
     {
         double3 V = Unit(-ray.direction);   // 视线方向

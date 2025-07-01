@@ -130,6 +130,7 @@
     <ClInclude Include="rtmath.cuh" />
     <ClInclude Include="Hittable.cuh" />
     <ClInclude Include="IniParser.h" />
+    <ClInclude Include="stb_image.h" />
     <ClInclude Include="tiny_obj_loader.h" />
     <ClInclude Include="Window.cuh" />
   </ItemGroup>

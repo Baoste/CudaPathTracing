@@ -43,7 +43,17 @@ __global__ inline void allocateFloorOnDevice(Hittable* d_objs, unsigned int* d_o
     new (&d_objs[(*d_objPtr)++]) Hittable(Triangle(rt, lb, rb, color, alphaX, alphaY));
 }
 
-__global__ inline void allocateMeshesOnDevice(Hittable* d_objs, unsigned int* d_objPtr, MeshTriangle* d_triangles, double3 color, double alphaX, double alphaY, bool glass, const int size)
+//__global__ inline void allocateBzeierOnDevice(Hittable* d_objs, unsigned int* d_objPtr, 
+//    const double3 p0, const double3 p1, const double3 p2, const double3 p3,
+//    const double3 p4, const double3 p5, const double3 p6, const double3 p7,
+//    const double3 p8, const double3 p9, const double3 p10, const double3 p11,
+//    const double3 p12, const double3 p13, const double3 p14, const double3 p15,
+//    const double3 color, double alphaX, double alphaY)
+//{
+//    new (&d_objs[(*d_objPtr)++]) Hittable(Bzeier(p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, color, alphaX, alphaY));
+//}
+
+__global__ inline void allocateMeshesOnDevice(Hittable* d_objs, unsigned int* d_objPtr, MeshTriangle* d_triangles, unsigned char* d_image, int width, int height, int channels, MeshUV* d_uvs, double3 color, double alphaX, double alphaY, bool glass, const int size)
 {
     for (int i = 0; i < size; i++)
     {
@@ -53,7 +63,14 @@ __global__ inline void allocateMeshesOnDevice(Hittable* d_objs, unsigned int* d_
             d_triangles[i].p2,
             color,
             alphaX, alphaY,
-            glass
+            glass,
+            d_uvs[i].p0,
+            d_uvs[i].p1,
+            d_uvs[i].p2,
+            d_image,
+            width,
+            height,
+            channels
         ));
     }
 }

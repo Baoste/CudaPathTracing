@@ -7,10 +7,20 @@
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "tiny_obj_loader.h"
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 int main()
 {
+    std::string sceneINIPath;
+    std::cout << "Enter scene ini file path (default: scene.ini):" << std::endl;
+    std::getline(std::cin, sceneINIPath);
+    // default
+    if (sceneINIPath.empty()) 
+        sceneINIPath = "C:/Users/59409/source/repos/CudaRayTracing/CudaRayTracing/scene_ini/Scene3.ini";
+
     IniParser parser;
-    parser.Parse("C:/Users/59409/source/repos/CudaRayTracing/CudaRayTracing/scene_ini/Scene3.ini");
+    parser.Parse(sceneINIPath);
 
     int nx = parser.camera.width;
     int ny = static_cast<int>(nx / 16.0 * 9.0);
@@ -27,12 +37,18 @@ int main()
 
 
     Window app(nx, ny, &camera, &scene);
+    
+    uchar4* d_gBuffer;
+    cudaMalloc((void**)&d_gBuffer, nx * ny * sizeof(uchar4));
 
     if (app.Init())
     {
         bool preStats = false;
         double preTime = 0;
         double t = 0;
+        clear <<< blocks, threads >>> (app.devicePtr, nx, ny);
+        cudaDeviceSynchronize();
+
         while (!app.Close())
         {
             if (app.PollInput())
@@ -46,8 +62,14 @@ int main()
                     std::cout << "Rendering " << app.sampleCount << " sample count..." << std::endl;
                     t = preTime;
                 }
-                render <<< blocks, threads >>> (app.devicePtr, scene.d_camera, scene.d_lightsIndex, scene.device.d_objs, scene.internalNodes, scene.lightsCount, nx, ny, sampleCount, t);
+                render <<< blocks, threads >>> (app.devicePtr, d_gBuffer, scene.d_camera, scene.d_lightsIndex, scene.device.d_objs, scene.internalNodes, scene.lightsCount, nx, ny, sampleCount, t);
                 checkCudaErrors(cudaDeviceSynchronize());
+
+                //gaussian <<< blocks, threads >>> (app.devicePtr, nx, ny);
+                //cudaDeviceSynchronize();
+
+                //addPrevious << < blocks, threads >> > (app.devicePtr, d_gBuffer, nx, ny);
+                //cudaDeviceSynchronize();
                 
                 if (parser.hasCloth)
                     scene.Update();

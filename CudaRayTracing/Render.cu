@@ -3,7 +3,17 @@
 
 #define CLAMP01(x) ((x) > 1.0 ? 1.0 : ((x) < 0.0 ? 0.0 : (x)))
 
-__global__ void render(uchar4* devPtr, const Camera* camera, unsigned int* lightsIndex, Hittable* objs, Node* internalNodes, int lightsCount,
+__global__ void clear(uchar4* devPtr, int max_x, int max_y)
+{
+    int i = threadIdx.x + blockIdx.x * blockDim.x;
+    int j = threadIdx.y + blockIdx.y * blockDim.y;
+    if ((i >= max_x) || (j >= max_y)) return;
+
+    int offset = j * max_x + i;
+    devPtr[offset] = make_uchar4(0, 0, 0, 255);
+}
+
+__global__ void render(uchar4* devPtr, uchar4* gBuffer, const Camera* camera, unsigned int* lightsIndex, Hittable* objs, Node* internalNodes, int lightsCount,
     int max_x, int max_y, int sampleCount, double t)
 {
     int i = threadIdx.x + blockIdx.x * blockDim.x;
@@ -15,7 +25,7 @@ __global__ void render(uchar4* devPtr, const Camera* camera, unsigned int* light
     
     // random sample
     curandState state;
-    curand_init(3317, offset, 0, &state);
+    curand_init(1000, offset, 0, &state);
 
     // path tracing
    
@@ -86,6 +96,7 @@ __global__ void render(uchar4* devPtr, const Camera* camera, unsigned int* light
                 break;
 
             // depth
+            //double P_RR = 1.0;
             //if (depth++ > 0) break;
 
             // randomly choose ONE direction w_i
@@ -94,7 +105,6 @@ __global__ void render(uchar4* devPtr, const Camera* camera, unsigned int* light
             double pdf;
             record.getSample(ray, direction, pdf, r1, r2);
             throughput *= record.getFr(ray, direction) * Dot(direction, record.normal) / pdf / P_RR;
-            //throughput *= record.getFr(ray, direction) * Dot(direction, record.normal) / pdf;
 
             ray = Ray(record.hitPos, direction, 0.0);
             firstHit = false;
@@ -111,8 +121,57 @@ __global__ void render(uchar4* devPtr, const Camera* camera, unsigned int* light
     unsigned char r = static_cast<unsigned char>(254.99 * CLAMP01(pixelRadience.x));
     unsigned char g = static_cast<unsigned char>(254.99 * CLAMP01(pixelRadience.y));
     unsigned char b = static_cast<unsigned char>(254.99 * CLAMP01(pixelRadience.z));
+
+    gBuffer[offset] = devPtr[offset];
     devPtr[offset] = make_uchar4(r, g, b, 255);
 }
+
+__global__ void gaussian(uchar4* devPtr, int max_x, int max_y)
+{
+    int i = threadIdx.x + blockIdx.x * blockDim.x;
+    int j = threadIdx.y + blockIdx.y * blockDim.y;
+    if (i <= 0 || i >= max_x - 1 || j <= 0 || j >= max_y - 1) return;
+
+    uchar4 result = make_uchar4(0, 0, 0, 255);
+    double gaussianKernel[3][3] = {
+        {1.0 / 16, 2.0 / 16, 1.0 / 16},
+        {2.0 / 16, 4.0 / 16, 2.0 / 16},
+        {1.0 / 16, 2.0 / 16, 1.0 / 16}
+    };
+
+    // 3x3 ¸ßË¹ÂË²¨
+    for (int dy = -1; dy <= 1; dy++) 
+    {
+        for (int dx = -1; dx <= 1; dx++) 
+        {
+            int ix = i + dx;
+            int iy = j + dy;
+            int offset = iy * max_x + ix;
+            result.x += devPtr[offset].x * gaussianKernel[dy + 1][dx + 1];
+            result.y += devPtr[offset].y * gaussianKernel[dy + 1][dx + 1];
+            result.z += devPtr[offset].z * gaussianKernel[dy + 1][dx + 1];
+        }
+    }
+
+    int offset = j * max_x + i;
+    devPtr[offset] = result;
+}
+
+__global__ void addPrevious(uchar4* devPtr, uchar4* gBuffer, int max_x, int max_y)
+{
+    int i = threadIdx.x + blockIdx.x * blockDim.x;
+    int j = threadIdx.y + blockIdx.y * blockDim.y;
+    if ((i >= max_x) || (j >= max_y)) return;
+
+    int offset = j * max_x + i;
+
+    double alpha = 0.2;
+    devPtr[offset].x = devPtr[offset].x * 0.2 + gBuffer[offset].x * (1.0 - alpha);
+    devPtr[offset].y = devPtr[offset].y * 0.2 + gBuffer[offset].y * (1.0 - alpha);
+    devPtr[offset].z = devPtr[offset].z * 0.2 + gBuffer[offset].z * (1.0 - alpha);
+}
+
+
 
 __global__ void getObject(Hittable* objs, const Camera* camera, Node* internalNodes, int* selectPtr, const int x, const int y)
 {
