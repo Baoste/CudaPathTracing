@@ -36,7 +36,7 @@ void IniParser::Parse(const std::string& filename)
         // 根据节来处理不同的配置
         if (section == "Camera") 
         {
-            if (key == "background") camera.background = parseVec3(value);
+            if (key == "background") camera.background = parseColor(value);
             else if (key == "width") camera.width = std::stoi(value);
             else if (key == "lookFrom") camera.lookFrom = parseVec3(value);
             else if (key == "lookAt") camera.lookAt = parseVec3(value);
@@ -48,15 +48,17 @@ void IniParser::Parse(const std::string& filename)
             else if (key == "width") lights.back().width = std::stod(value);
             else if (key == "height") lights.back().height = std::stod(value);
             else if (key == "normal") lights.back().normal = parseVec3(value);
-            else if (key == "color") lights.back().color = parseVec3(value);
+            else if (key == "color") lights.back().color = parseColor(value);
+            else if (key == "visible") lights.back().visible = std::stoi(value);
         }
         else if (section == "Sphere") 
         {
             if (key == "center") spheres.back().center = parseVec3(value);
             else if (key == "radius") spheres.back().radius = std::stod(value);
-            else if (key == "color") spheres.back().color = parseVec3(value);
+            else if (key == "color") spheres.back().color = parseColor(value);
             else if (key == "alphaX") spheres.back().alphaX = std::stod(value);
             else if (key == "alphaY") spheres.back().alphaY = std::stod(value);
+            else if (key == "type") spheres.back().type = ParseMaterialType(value);
         }
         else if (section == "Floor") 
         {
@@ -64,9 +66,10 @@ void IniParser::Parse(const std::string& filename)
             else if (key == "rt") floors.back().rt = parseVec3(value);
             else if (key == "lb") floors.back().lb = parseVec3(value);
             else if (key == "rb") floors.back().rb = parseVec3(value);
-            else if (key == "color") floors.back().color = parseVec3(value);
+            else if (key == "color") floors.back().color = parseColor(value);
             else if (key == "alphaX") floors.back().alphaX = std::stod(value);
             else if (key == "alphaY") floors.back().alphaY = std::stod(value);
+            else if (key == "type") floors.back().type = ParseMaterialType(value);
         }
         else if (section == "Mesh") 
         {
@@ -74,8 +77,8 @@ void IniParser::Parse(const std::string& filename)
             else if (key == "texture") meshes.back().texture = value;
             else if (key == "center") meshes.back().center = parseVec3(value);
             else if (key == "rotation") meshes.back().rotation = std::stod(value);
-            else if (key == "color") meshes.back().color = parseVec3(value);
-            else if (key == "glass") meshes.back().glass = std::stoi(value);
+            else if (key == "color") meshes.back().color = parseColor(value);
+            else if (key == "type") meshes.back().type = ParseMaterialType(value);
             else if (key == "scale") meshes.back().scale = std::stod(value);
             else if (key == "alphaX") meshes.back().alphaX = std::stod(value);
             else if (key == "alphaY") meshes.back().alphaY = std::stod(value);
@@ -85,7 +88,7 @@ void IniParser::Parse(const std::string& filename)
             hasCloth = true;
             if (key == "center") cloth.center = parseVec3(value);
             else if (key == "width") cloth.width = std::stod(value);
-            else if (key == "color") cloth.color = parseVec3(value);
+            else if (key == "color") cloth.color = parseColor(value);
         }
     }
 }
@@ -97,4 +100,26 @@ double3 IniParser::parseVec3(const std::string& str)
     char discard;
     ss >> discard >> vec.x >> discard >> vec.y >> discard >> vec.z >> discard;
     return vec;
+}
+
+double3 IniParser::parseColor(const std::string& str)
+{
+    double3 vec;
+    std::istringstream ss(str);
+    int temp_x, temp_y, temp_z;
+    char discard;
+    ss >> discard >> temp_x >> discard >> temp_y >> discard >> temp_z >> discard;
+    vec.x = static_cast<double>(temp_x) / 255.0;
+    vec.y = static_cast<double>(temp_y) / 255.0;
+    vec.z = static_cast<double>(temp_z) / 255.0;
+    return vec;
+}
+
+MaterialType IniParser::ParseMaterialType(const std::string& str)
+{
+    if (str == "Light") return MaterialType::M_LIGHT;
+    if (str == "Opaque") return MaterialType::M_OPAQUE;
+    if (str == "SpecularDielectric") return MaterialType::M_SPECULAR_DIELECTRIC;
+    if (str == "RoughDielectric") return MaterialType::M_ROUGH_DIELECTRIC;
+    return MaterialType::M_OPAQUE;
 }

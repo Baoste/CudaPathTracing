@@ -68,19 +68,19 @@ public:
         // light
         cudaMalloc((void**)&d_lightsIndex, 10 * sizeof(unsigned int));
         for (auto light : parser.lights)
-            addOneLight(light.center, light.width, light.height, light.normal, light.color, true);
+            addOneLight(light.center, light.width, light.height, light.normal, light.color, light.visible);
 
         // sphere
         for (auto sphere : parser.spheres)
-            addOneSphere(sphere.center, sphere.radius, sphere.color, sphere.alphaX, sphere.alphaY);
+            addOneSphere(sphere.center, sphere.radius, sphere.color, sphere.alphaX, sphere.alphaY, sphere.type);
 
         // floor
         for (auto floor : parser.floors)
-            addFloor(floor.lt, floor.rt, floor.lb, floor.rb, floor.color, floor.alphaX, floor.alphaY);
+            addFloor(floor.lt, floor.rt, floor.lb, floor.rb, floor.color, floor.alphaX, floor.alphaY, floor.type);
 
         // mesh
         for (auto mesh : parser.meshes)
-            addMeshes(mesh.path, mesh.texture, mesh.center, mesh.rotation, mesh.scale, mesh.color, mesh.alphaX, mesh.alphaY, mesh.glass);
+            addMeshes(mesh.path, mesh.texture, mesh.center, mesh.rotation, mesh.scale, mesh.color, mesh.alphaX, mesh.alphaY, mesh.type);
 
         // cloth
         if (parser.hasCloth)
@@ -147,7 +147,7 @@ public:
 
     }
 
-    void addOneLight(double3 position, double width, double height, double3 normal, double3 color, bool visible = false)
+    void addOneLight(double3 position, double width, double height, double3 normal, double3 color, bool visible)
     {
         unsigned int prePtr, afterPtr;
         cudaMemcpy(&prePtr, device.d_objPtr, sizeof(unsigned int), cudaMemcpyDeviceToHost);
@@ -161,11 +161,11 @@ public:
         objects.push_back({ "light", prePtr, afterPtr });
     }
 
-    void addOneSphere(double3 position, double radius, double3 color, double alphaX, double alphaY)
+    void addOneSphere(double3 position, double radius, double3 color, double alphaX, double alphaY, MaterialType type = MaterialType::M_OPAQUE)
     {
         unsigned int prePtr, afterPtr;
         cudaMemcpy(&prePtr, device.d_objPtr, sizeof(unsigned int), cudaMemcpyDeviceToHost);
-        allocateSphereOnDevice << < 1, 1 >> > (device.d_objs, device.d_objPtr, position, radius, color, alphaX, alphaY);
+        allocateSphereOnDevice << < 1, 1 >> > (device.d_objs, device.d_objPtr, position, radius, color, alphaX, alphaY, type);
         checkCudaErrors(cudaDeviceSynchronize());
         cudaMemcpy(&afterPtr, device.d_objPtr, sizeof(unsigned int), cudaMemcpyDeviceToHost);
         allCount++;
@@ -174,11 +174,11 @@ public:
         objects.push_back({ "sphere", prePtr, afterPtr });
     }
 
-    void addFloor(double3 lt, double3 rt, double3 lb, double3 rb, double3 color, double alphaX, double alphaY)
+    void addFloor(double3 lt, double3 rt, double3 lb, double3 rb, double3 color, double alphaX, double alphaY, MaterialType type = MaterialType::M_OPAQUE)
     {
         unsigned int prePtr, afterPtr;
         cudaMemcpy(&prePtr, device.d_objPtr, sizeof(unsigned int), cudaMemcpyDeviceToHost);
-        allocateFloorOnDevice << < 1, 1 >> > (device.d_objs, device.d_objPtr, lt, rt, lb, rb, color, alphaX, alphaY);
+        allocateFloorOnDevice << < 1, 1 >> > (device.d_objs, device.d_objPtr, lt, rt, lb, rb, color, alphaX, alphaY, type);
         checkCudaErrors(cudaDeviceSynchronize());
         cudaMemcpy(&afterPtr, device.d_objPtr, sizeof(unsigned int), cudaMemcpyDeviceToHost);
         allCount += 2;
@@ -204,7 +204,7 @@ public:
     //    objects.push_back({ "floor", prePtr, afterPtr });
     //}
 
-    void addMeshes(const std::string& fileName, const std::string& texture, double3 position, double rotation, double scale, double3 color, double alphaX, double alphaY, bool glass = false)
+    void addMeshes(const std::string& fileName, const std::string& texture, double3 position, double rotation, double scale, double3 color, double alphaX, double alphaY, MaterialType type = MaterialType::M_OPAQUE)
     {
         unsigned int prePtr, afterPtr;
         cudaMemcpy(&prePtr, device.d_objPtr, sizeof(unsigned int), cudaMemcpyDeviceToHost);
@@ -231,7 +231,7 @@ public:
         cudaMalloc((void**)&d_uvs, num * sizeof(MeshUV));
         cudaMemcpy(d_triangles, mesh.triangles.data(), num * sizeof(MeshTriangle), cudaMemcpyHostToDevice);
         cudaMemcpy(d_uvs, mesh.uvs.data(), num * sizeof(MeshUV), cudaMemcpyHostToDevice);
-        allocateMeshesOnDevice << < 1, 1 >> > (device.d_objs, device.d_objPtr, d_triangles, d_image, width, height, channels, d_uvs, color, alphaX, alphaY, glass, num);
+        allocateMeshesOnDevice << < 1, 1 >> > (device.d_objs, device.d_objPtr, d_triangles, d_image, width, height, channels, d_uvs, color, alphaX, alphaY, type, num);
         checkCudaErrors(cudaDeviceSynchronize());
 
         cudaMemcpy(&afterPtr, device.d_objPtr, sizeof(unsigned int), cudaMemcpyDeviceToHost);

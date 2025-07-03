@@ -16,11 +16,11 @@ public:
 
 public:
     __host__ __device__ Sphere()
-        : center(make_double3(0.0, 0.0, 0.0)), radius(1.0), material(make_double3(1.0, 1.0, 1.0), 0.5, 0.5)
+        : center(make_double3(0.0, 0.0, 0.0)), radius(1.0), material(make_double3(1.0, 1.0, 1.0), 0.5, 0.5, MaterialType::M_OPAQUE)
     {
     }
-    __host__ __device__ Sphere(const double3 _center, double _radius, double3 color, double alphaX, double alphaY, bool glass = false)
-        : center(_center), radius(_radius), material(color, alphaX, alphaY, glass)
+    __host__ __device__ Sphere(const double3 _center, double _radius, double3 color, double alphaX, double alphaY, MaterialType type = MaterialType::M_OPAQUE)
+        : center(_center), radius(_radius), material(color, alphaX, alphaY, type)
     {
     }
     __host__ __device__ ~Sphere() {}
@@ -65,10 +65,10 @@ public:
 
 public:
     __host__ __device__ Triangle(const double3 _p0, const double3 _p1, const double3 _p2, 
-        const double3 color, double alphaX, double alphaY, bool glass = false,
+        const double3 color, double alphaX, double alphaY, MaterialType type = MaterialType::M_OPAQUE,
         const double2 _uv0 = make_double2(0.0, 0.0), const double2 _uv1 = make_double2(0.0, 0.0), const double2 _uv2 = make_double2(0.0, 0.0),
         unsigned char* _texture = NULL, int _width = 0, int _height = 0, int _channels = 0)
-        : p0(_p0), p1(_p1), p2(_p2), uv0(_uv0), uv1(_uv1), uv2(_uv2), material(color, alphaX, alphaY, glass),
+        : p0(_p0), p1(_p1), p2(_p2), uv0(_uv0), uv1(_uv1), uv2(_uv2), material(color, alphaX, alphaY, type),
           texture(_texture), width(_width), height(_height), channels(_channels)
     {
         center = (p0 + p1 + p2) / 3.0;
@@ -330,12 +330,12 @@ public:
     double3 normal;
     double3 edgeU;
     double3 edgeV;
-    Color color;
+    Material material;
     bool visible;
 
 public:
     __host__ __device__ Light(double3 _center, double _width, double _height, double3 _normal, double3 _color, bool _visible = false)
-        : center(_center), width(_width), height(_height), normal(_normal), color(_color), visible(_visible)
+        : center(_center), width(_width), height(_height), normal(_normal), material(_color, 1.0, 1.0, MaterialType::M_LIGHT), visible(_visible)
     {
         normal = Unit(normal);
         edgeU = fabs(normal.x) > 0.9 ? Unit(Cross(make_double3(0, 1, 0), normal)) : Unit(Cross(make_double3(1, 0, 0), normal));
@@ -365,7 +365,7 @@ public:
         {
             record.hitPos = hitPoint;
             record.t = t;
-            record.material = NULL;
+            record.material = &material;
             double3 outwardNoraml = normal;
             record.setFaceNormal(ray, outwardNoraml);
             return true;

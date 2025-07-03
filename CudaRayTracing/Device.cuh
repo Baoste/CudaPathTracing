@@ -26,21 +26,21 @@ __global__ inline void registerDevice(unsigned int* d_objPtr, unsigned int* d_li
     *d_lightPtr = 0;  // reset the object pointer
 }
 
-__global__ inline void allocateSphereOnDevice(Hittable* d_objs, unsigned int* d_objPtr, double3 center, double r, double3 color, double alphaX, double alphaY)
-{
-    new (&d_objs[(*d_objPtr)++]) Hittable(Sphere(center, r, color, alphaX, alphaY));
-}
-
 __global__ inline void allocateLightOnDevice(Hittable* d_objs, unsigned int* d_objPtr, unsigned int* d_lightsIndex, unsigned int* d_lightPtr, double3 position, double width, double height, double3 normal, double3 color, bool visible = false)
 {
     new (&d_objs[*d_objPtr]) Hittable(Light(position, width, height, normal, color, visible));
     d_lightsIndex[(*d_lightPtr)++] = (*d_objPtr)++;
 }
 
-__global__ inline void allocateFloorOnDevice(Hittable* d_objs, unsigned int* d_objPtr, double3 lt , double3 rt, double3 lb, double3 rb, double3 color, double alphaX, double alphaY)
+__global__ inline void allocateSphereOnDevice(Hittable* d_objs, unsigned int* d_objPtr, double3 center, double r, double3 color, double alphaX, double alphaY, MaterialType type)
 {
-    new (&d_objs[(*d_objPtr)++]) Hittable(Triangle(lt, lb, rt, color, alphaX, alphaY));
-    new (&d_objs[(*d_objPtr)++]) Hittable(Triangle(rt, lb, rb, color, alphaX, alphaY));
+    new (&d_objs[(*d_objPtr)++]) Hittable(Sphere(center, r, color, alphaX, alphaY, type));
+}
+
+__global__ inline void allocateFloorOnDevice(Hittable* d_objs, unsigned int* d_objPtr, double3 lt , double3 rt, double3 lb, double3 rb, double3 color, double alphaX, double alphaY, MaterialType type)
+{
+    new (&d_objs[(*d_objPtr)++]) Hittable(Triangle(lt, lb, rt, color, alphaX, alphaY, type));
+    new (&d_objs[(*d_objPtr)++]) Hittable(Triangle(rt, lb, rb, color, alphaX, alphaY, type));
 }
 
 //__global__ inline void allocateBzeierOnDevice(Hittable* d_objs, unsigned int* d_objPtr, 
@@ -53,7 +53,7 @@ __global__ inline void allocateFloorOnDevice(Hittable* d_objs, unsigned int* d_o
 //    new (&d_objs[(*d_objPtr)++]) Hittable(Bzeier(p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, color, alphaX, alphaY));
 //}
 
-__global__ inline void allocateMeshesOnDevice(Hittable* d_objs, unsigned int* d_objPtr, MeshTriangle* d_triangles, unsigned char* d_image, int width, int height, int channels, MeshUV* d_uvs, double3 color, double alphaX, double alphaY, bool glass, const int size)
+__global__ inline void allocateMeshesOnDevice(Hittable* d_objs, unsigned int* d_objPtr, MeshTriangle* d_triangles, unsigned char* d_image, int width, int height, int channels, MeshUV* d_uvs, double3 color, double alphaX, double alphaY, MaterialType type, const int size)
 {
     for (int i = 0; i < size; i++)
     {
@@ -63,7 +63,7 @@ __global__ inline void allocateMeshesOnDevice(Hittable* d_objs, unsigned int* d_
             d_triangles[i].p2,
             color,
             alphaX, alphaY,
-            glass,
+            type,
             d_uvs[i].p0,
             d_uvs[i].p1,
             d_uvs[i].p2,

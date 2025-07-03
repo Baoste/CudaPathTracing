@@ -9,6 +9,8 @@
 
 #include <cuda_runtime.h>
 
+#include "rtmath.cuh"
+
 struct CameraInfo
 {
     double3 background;
@@ -25,7 +27,8 @@ struct LightInfo
     double width, height;
     double3 normal;
     double3 color;
-    LightInfo() : center{ 0.0, 0.0, 0.0 }, width(0.0), height(0.0), normal{ 0.0, 0.0, 1.0 }, color{ 1.0, 1.0, 1.0 } {}
+    bool visible;
+    LightInfo() : center{ 0.0, 0.0, 0.0 }, width(0.0), height(0.0), normal{ 0.0, 0.0, 1.0 }, color{ 1.0, 1.0, 1.0 }, visible(true) {}
 };
 
 struct SphereInfo
@@ -34,7 +37,8 @@ struct SphereInfo
     double radius;
     double3 color;
     double alphaX, alphaY;
-    SphereInfo() : center{ 0.0, 0.0, 0.0 }, radius(0.0), color{ 1.0, 1.0, 1.0 }, alphaX(0.5), alphaY(0.5) {}
+    MaterialType type;
+    SphereInfo() : center{ 0.0, 0.0, 0.0 }, radius(0.0), color{ 1.0, 1.0, 1.0 }, alphaX(0.5), alphaY(0.5), type(MaterialType::M_OPAQUE) {}
 };
 
 struct FloorInfo
@@ -42,7 +46,8 @@ struct FloorInfo
     double3 lt, rt, lb, rb;
     double3 color;
     double alphaX, alphaY;
-    FloorInfo() : lt{ 0.0, 0.0, 0.0 }, rt{ 0.0, 0.0, 0.0 }, lb{ 0.0, 0.0, 0.0 }, rb{ 0.0, 0.0, 0.0 }, color{ 1.0, 1.0, 1.0 }, alphaX(0.5), alphaY(0.5) {}
+    MaterialType type;
+    FloorInfo() : lt{ 0.0, 0.0, 0.0 }, rt{ 0.0, 0.0, 0.0 }, lb{ 0.0, 0.0, 0.0 }, rb{ 0.0, 0.0, 0.0 }, color{ 1.0, 1.0, 1.0 }, alphaX(0.5), alphaY(0.5), type(MaterialType::M_OPAQUE) {}
 };
 
 struct MeshInfo
@@ -52,10 +57,10 @@ struct MeshInfo
     double3 center;
     double3 color;
     double alphaX, alphaY;
-    bool glass;
+    MaterialType type;
     double rotation; 
     double scale; 
-    MeshInfo() : path(""), texture(""), center { 0.0, 0.0, 0.0 }, color{1.0, 1.0, 1.0}, alphaX(0.5), alphaY(0.5), glass(false), scale(1.0), rotation(0.0) {}
+    MeshInfo() : path(""), texture(""), center { 0.0, 0.0, 0.0 }, color{1.0, 1.0, 1.0}, alphaX(0.5), alphaY(0.5), type(MaterialType::M_OPAQUE), scale(1.0), rotation(0.0) {}
 };
 
 struct ClothInfo
@@ -81,5 +86,7 @@ public:
 
 private:
     double3 parseVec3(const std::string& str);
+    double3 parseColor(const std::string& str);
+    MaterialType ParseMaterialType(const std::string& str);
 };
 

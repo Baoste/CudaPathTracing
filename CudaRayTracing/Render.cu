@@ -55,9 +55,9 @@ __global__ void render(uchar4* devPtr, uchar4* gBuffer, const Camera* camera, un
                 break;
             }
             // if hit light
-            if (record.material == NULL)
+            if (record.material->type == MaterialType::M_LIGHT)
             {
-                radiance += throughput * make_double3(1.0, 1.0, 1.0);
+                radiance += throughput * record.material->color;
                 break;
             }
 
@@ -66,14 +66,14 @@ __global__ void render(uchar4* devPtr, uchar4* gBuffer, const Camera* camera, un
             for (int k = 0; k < lightsCount; k++)
             {
                 // if the material is glass, skip the light contribution
-                if (record.material->glass)
+                if (record.material->type != MaterialType::M_OPAQUE)
                     break;
 
                 Light light = objs[lightsIndex[k]].light;
                 double lightWidth = light.width;
                 double lightHeight = light.width;
                 double pdfLight = 1.0 / (lightWidth * lightHeight);
-                double3 lightIntensity = light.color;
+                double3 lightIntensity = light.material.color;
                 double3 lightCenter = light.center;
                 double3 lightPos = lightCenter +
                     (curand_uniform_double(&state) - 0.5) * lightWidth * light.edgeU +
@@ -102,9 +102,14 @@ __global__ void render(uchar4* devPtr, uchar4* gBuffer, const Camera* camera, un
             // randomly choose ONE direction w_i
             double r1 = curand_uniform_double(&state);
             double r2 = curand_uniform_double(&state);
+            double r3 = curand_uniform_double(&state);
             double pdf;
-            record.getSample(ray, direction, pdf, r1, r2);
-            throughput *= record.getFr(ray, direction) * Dot(direction, record.normal) / pdf / P_RR;
+            double3 wm;
+            record.getSample(ray, direction, wm, pdf, r1, r2, r3);
+            if (pdf <= 0.0)
+                break;
+            // ! IMPORTANT, cosθ_i在折射为负数，需要加上绝对值，否则折射全黑
+            throughput *= record.getFr(ray, direction, wm) * fabs(Dot(direction, record.normal)) / pdf / P_RR;
 
             ray = Ray(record.hitPos, direction, 0.0);
             firstHit = false;
@@ -198,12 +203,12 @@ __global__ void changeMaterial(Hittable* objs, const int start, const int end, c
     case ObjectType::SPHERE:
         objs[idx].sphere.material.alphaX = alphaX;
         objs[idx].sphere.material.alphaY = alphaY;
-        objs[idx].sphere.material.glass = glass;
+        objs[idx].sphere.material.type = glass ? MaterialType::M_SPECULAR_DIELECTRIC : MaterialType::M_OPAQUE;
         break;
     case ObjectType::TRIANGLE:
         objs[idx].triangle.material.alphaX = alphaX;
         objs[idx].triangle.material.alphaY = alphaY;
-        objs[idx].triangle.material.glass = glass;
+        objs[idx].triangle.material.type = glass ? MaterialType::M_SPECULAR_DIELECTRIC : MaterialType::M_OPAQUE;
         break;
     case ObjectType::LIGHT:
     case ObjectType::NONE:

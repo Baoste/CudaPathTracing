@@ -25,12 +25,12 @@ public:
         frontFace = Dot(ray.direction, outwardNormal) < 0;
         normal = frontFace ? outwardNormal : -outwardNormal;
     }
-    __device__ inline double3 getFr(const Ray& ray, const double3 direction)
+    __device__ inline double3 getFr(const Ray& ray, const double3 direction, const double3 wm = make_double3(0.0,0.0,0.0))
     {
-        return (*material).fr(ray, normal, direction, frontFace);
+        return (*material).fr(ray, normal, direction, wm, frontFace);
     }
-    __device__ inline void getSample(const Ray& ray, double3& direction, double& pdf, double r1, double r2)
+    __device__ inline void getSample(const Ray& ray, double3& direction, double3& wm, double& pdf, double r1, double r2, double r3)
     {
-        (*material).sampleLight(ray, normal, direction, pdf, r1, r2, frontFace);
+        (*material).sampleLight(ray, normal, direction, wm, pdf, r1, r2, r3, frontFace);
     }
 };

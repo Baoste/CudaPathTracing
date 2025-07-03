@@ -13,12 +13,13 @@
 int main()
 {
     std::string sceneINIPath;
-    std::cout << "Enter scene ini file path (default: scene.ini):" << std::endl;
+    std::cout << "Enter scene ini file path (default: scene0.ini):" << std::endl;
     std::getline(std::cin, sceneINIPath);
     // default
     if (sceneINIPath.empty()) 
-        sceneINIPath = "C:/Users/59409/source/repos/CudaRayTracing/CudaRayTracing/scene_ini/Scene3.ini";
+        sceneINIPath = "0";
 
+    sceneINIPath = "C:/Users/59409/source/repos/CudaRayTracing/CudaRayTracing/scene_ini/Scene" + sceneINIPath + ".ini";
     IniParser parser;
     parser.Parse(sceneINIPath);
 
@@ -60,10 +61,13 @@ int main()
                 if (app.paused)
                 {
                     std::cout << "Rendering " << app.sampleCount << " sample count..." << std::endl;
+                    preStats = app.paused;
                     t = preTime;
+                    render <<< blocks, threads >>> (app.devicePtr, d_gBuffer, scene.d_camera, scene.d_lightsIndex, scene.device.d_objs, scene.internalNodes, scene.lightsCount, nx, ny, sampleCount, t);
+                    continue;
                 }
                 render <<< blocks, threads >>> (app.devicePtr, d_gBuffer, scene.d_camera, scene.d_lightsIndex, scene.device.d_objs, scene.internalNodes, scene.lightsCount, nx, ny, sampleCount, t);
-                checkCudaErrors(cudaDeviceSynchronize());
+                cudaDeviceSynchronize();
 
                 //gaussian <<< blocks, threads >>> (app.devicePtr, nx, ny);
                 //cudaDeviceSynchronize();
