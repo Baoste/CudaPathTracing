@@ -13,6 +13,7 @@
   <PropertyGroup Label="Globals">
     <ProjectGuid>{29C29220-C548-4540-8357-4DB2D4E568F2}</ProjectGuid>
     <RootNamespace>CudaRayTracing</RootNamespace>
+    <ProjectName>CudaPathTracing</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">

@@ -19,7 +19,7 @@ int main()
     if (sceneINIPath.empty()) 
         sceneINIPath = "0";
 
-    sceneINIPath = "C:/Users/59409/source/repos/CudaRayTracing/CudaRayTracing/scene_ini/Scene" + sceneINIPath + ".ini";
+    sceneINIPath = "C:/Users/59409/source/repos/CudaPathTracing/CudaPathTracing/scene_ini/Scene" + sceneINIPath + ".ini";
     IniParser parser;
     parser.Parse(sceneINIPath);
 
