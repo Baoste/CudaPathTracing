@@ -104,12 +104,12 @@ __global__ void render(uchar4* devPtr, uchar4* gBuffer, const Camera* camera, un
             double r2 = curand_uniform_double(&state);
             double r3 = curand_uniform_double(&state);
             double pdf;
-            double3 wm;
-            record.getSample(ray, direction, wm, pdf, r1, r2, r3);
+
+            record.getSample(ray, direction, pdf, r1, r2, r3);
             if (pdf <= 0.0)
                 break;
             // ! IMPORTANT, cosθ_i在折射为负数，需要加上绝对值，否则折射全黑
-            throughput *= record.getFr(ray, direction, wm) * fabs(Dot(direction, record.normal)) / pdf / P_RR;
+            throughput *= record.getFr(ray, direction) * fabs(Dot(direction, record.normal)) / pdf / P_RR;
 
             ray = Ray(record.hitPos, direction, 0.0);
             firstHit = false;

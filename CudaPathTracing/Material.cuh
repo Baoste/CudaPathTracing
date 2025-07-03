@@ -21,18 +21,11 @@ public:
     {
     }
 
-    __host__ __device__ void sampleTexture(const unsigned char* texture, const double width, const double height, const double uu, const double vv)
+    __host__ __device__ double3 fr(double3 hitColor, const Ray& ray, const double3 normal, const double3 direction, const double3 wm, bool frontFace)
     {
-        if (texture == NULL)
-            return;
-        int x = mMin(mMax(int(uu * width), 0), width - 1);
-        int y = mMin(mMax(int(vv * height), 0), height - 1);
-        int idx = (y * width + x) * 3;
-        color = make_double3(texture[idx] / 255.0, texture[idx + 1] / 255.0, texture[idx + 2] / 255.0);
-    }
+        if (hitColor.x < 0.0 && hitColor.y < 0.0 && hitColor.z < 0.0)
+            hitColor = color;
 
-    __host__ __device__ double3 fr(const Ray& ray, const double3 normal, const double3 direction, const double3 wm, bool frontFace)
-    {
         double3 V = Unit(-ray.direction);   // 视线方向
         double3 L = Unit(direction);        // 光源方向
         double3 H = Unit(V + L);
@@ -41,8 +34,14 @@ public:
         
         if (type == MaterialType::M_SPECULAR_DIELECTRIC)
         {
+            //double refRatio = frontFace ? eta : (1.0 / eta);
+            //double F = FresnelDielectric(normal, V, L, refRatio);
+            //if (reflect)
+            //    return  F * hitColor / cosTheta_t;
+            //else
+            //    return (1.0 - F) * hitColor / cosTheta_t;
             double cosTheta_t = fabs(Dot(normal, L));
-            return  color / cosTheta_t;
+            return  hitColor / cosTheta_t;
         }
         else if (!reflect)
         {
@@ -61,7 +60,7 @@ public:
 
             double specular = (1.0 - F) * D * G * fabs(Dot(wm, L) * Dot(wm, V) / (cosTheta_i * cosTheta_t * denom));
 
-            return  specular * color;
+            return  specular * hitColor;
         }
         else
         {
@@ -83,7 +82,7 @@ public:
             double denominator = 4.0 * NdotV * NdotL + 0.001;
 
             double specular = (D * G * F) / denominator;
-            return specular * color;
+            return specular * hitColor;
         }
     }
 

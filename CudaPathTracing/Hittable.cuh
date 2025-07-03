@@ -106,7 +106,7 @@ public:
         // get texture
         double uu = (1.0 - u - v) * uv0.x + u * uv1.x + v * uv2.x;
         double vv = (1.0 - u - v) * uv0.y + u * uv1.y + v * uv2.y;
-        material.sampleTexture(texture, width, height, uu, vv);
+        record.sampleTexture(texture, width, height, uu, vv);
 
         record.hitPos = ray.at(t);
         record.t = t;
