@@ -13,8 +13,9 @@ __global__ void clear(uchar4* devPtr, int max_x, int max_y)
     devPtr[offset] = make_uchar4(0, 0, 0, 255);
 }
 
-__global__ void render(uchar4* devPtr, uchar4* gBuffer, const Camera* camera, unsigned int* lightsIndex, Hittable* objs, Node* internalNodes, int lightsCount,
-    int max_x, int max_y, int sampleCount, double t)
+__global__ void render(uchar4* devPtr, double3* pic, double3* picPrevious, double3* picBeforeGussian, double4* gBuffer,
+    const Camera* camera, unsigned int* lightsIndex, Hittable* objs, Node* internalNodes, int lightsCount,
+    int max_x, int max_y, int sampleCount, double t, RenderType rederType)
 {
     int i = threadIdx.x + blockIdx.x * blockDim.x;
     int j = threadIdx.y + blockIdx.y * blockDim.y;
@@ -25,12 +26,16 @@ __global__ void render(uchar4* devPtr, uchar4* gBuffer, const Camera* camera, un
     
     // random sample
     curandState state;
-    curand_init(1000, offset, 0, &state);
+    double seed = 3317.0;
+    if (rederType == RenderType::REAL_TIME)
+        seed = 1000.0 * t;
+    curand_init(seed, offset, 0, &state);
 
     // path tracing
    
     // pixel color
     double3 pixelRadience = make_double3(0.0, 0.0, 0.0);
+    if (rederType == RenderType::NORMAL || rederType == RenderType::DEPTH) sampleCount = 1;
 
     for (int sample = 0; sample < sampleCount; sample++)
     {
@@ -44,8 +49,10 @@ __global__ void render(uchar4* devPtr, uchar4* gBuffer, const Camera* camera, un
         // trace the ray
         double3 throughput = make_double3(1.0, 1.0, 1.0);  // 累乘 fr * cosθ / pdf
         double3 radiance = make_double3(0.0, 0.0, 0.0);    // final result
-        bool firstHit = true;
         int depth = 0;
+        
+        gBuffer[offset] = make_double4(0.0, 0.0, 0.0, INF);
+
         while (true) 
         {
             // if no hit, break
@@ -90,14 +97,30 @@ __global__ void render(uchar4* devPtr, uchar4* gBuffer, const Camera* camera, un
             }
 
             // contribution from other refectors
-            // russian roulette
-            double P_RR = 0.7;
-            if (curand_uniform_double(&state) > P_RR)
-                break;
+            double P_RR = 1.0;
+            if (rederType == RenderType::REAL_TIME)
+            {
+                if (depth++ >= 2) break;
+            }
+            else if (rederType == RenderType::NORMAL || rederType == RenderType::DEPTH)
+            {
+                if (depth++ >= 1) break;
+            }
+            else
+            {
+                // russian roulette
+                P_RR = 0.7;
+                if (curand_uniform_double(&state) > P_RR) break;
+            }
 
-            // depth
-            //double P_RR = 1.0;
-            //if (depth++ > 0) break;
+            // G-buffer
+            if (depth == 1)
+            {
+                gBuffer[offset].x = record.normal.x;
+                gBuffer[offset].y = record.normal.y;
+                gBuffer[offset].z = record.normal.z;
+                gBuffer[offset].w = Length(camera->lookFrom - record.hitPos);
+            }
 
             // randomly choose ONE direction w_i
             double r1 = curand_uniform_double(&state);
@@ -112,57 +135,191 @@ __global__ void render(uchar4* devPtr, uchar4* gBuffer, const Camera* camera, un
             throughput *= record.getFr(ray, direction) * fabs(Dot(direction, record.normal)) / pdf / P_RR;
 
             ray = Ray(record.hitPos, direction, 0.0);
-            firstHit = false;
         }
         pixelRadience += radiance;
     }
     pixelRadience /= sampleCount;
+    pixelRadience.x = CLAMP01(pixelRadience.x);
+    pixelRadience.y = CLAMP01(pixelRadience.y);
+    pixelRadience.z = CLAMP01(pixelRadience.z);
 
-    // gamma
-    pixelRadience.x = sqrt(pixelRadience.x);
-    pixelRadience.y = sqrt(pixelRadience.y);
-    pixelRadience.z = sqrt(pixelRadience.z);
-    // set color
-    unsigned char r = static_cast<unsigned char>(254.99 * CLAMP01(pixelRadience.x));
-    unsigned char g = static_cast<unsigned char>(254.99 * CLAMP01(pixelRadience.y));
-    unsigned char b = static_cast<unsigned char>(254.99 * CLAMP01(pixelRadience.z));
+    picPrevious[offset] = pic[offset];
+    pic[offset] = pixelRadience;
+    picBeforeGussian[offset] = pixelRadience;
 
-    gBuffer[offset] = devPtr[offset];
+    // 实时观看渲染过程
+    double3 pixel;
+    switch (rederType)
+    {
+    case STATIC:
+        pixel = pic[offset];
+        // gamma
+        pixel.x = sqrt(pixel.x);
+        pixel.y = sqrt(pixel.y);
+        pixel.z = sqrt(pixel.z);
+        break;
+    case NORMAL:
+        pixel.x = gBuffer[offset].x;
+        pixel.y = gBuffer[offset].y;
+        pixel.z = gBuffer[offset].z;
+        pixel = (pixel + make_double3(0.5, 0.5, 0.5)) / 2.0;
+        break;
+    case DEPTH:
+        double far = 50.0;
+        double fragColor = gBuffer[offset].w / far;
+        fragColor = CLAMP01(fragColor);
+        pixel.x = fragColor;
+        pixel.y = fragColor;
+        pixel.z = fragColor;
+        break;
+    default:
+        return;
+    }
+    unsigned char r = static_cast<unsigned char>(254.99 * CLAMP01(pixel.x));
+    unsigned char g = static_cast<unsigned char>(254.99 * CLAMP01(pixel.y));
+    unsigned char b = static_cast<unsigned char>(254.99 * CLAMP01(pixel.z));
+
     devPtr[offset] = make_uchar4(r, g, b, 255);
 }
 
-__global__ void gaussian(uchar4* devPtr, int max_x, int max_y)
+//__global__ void gaussianSeparate(uchar4* devPtr, uchar4* devBeforeGussian, double* d_kernel, int max_x, int max_y)
+//{
+//    int x = blockIdx.x * blockDim.x + threadIdx.x;
+//    int y = blockIdx.y * blockDim.y + threadIdx.y;
+//    if (x >= max_x || y >= max_y) return;
+//
+//    int offset = y * max_x + x;
+//
+//    // 横向
+//    double3 result = make_double3(0.0, 0.0, 0.0);
+//    double sumWeight = 0.0;
+//    for (int t = 1; t < 1 << KERNEL_SIZE; t <<= 1)
+//    {
+//        for (int i = -KERNEL_RADIUS; i <= KERNEL_RADIUS; i++)
+//        {
+//            for (int j = -KERNEL_RADIUS; j <= KERNEL_RADIUS; j++)
+//            {
+//                int nx = mMin(mMax(x + t * i, 0), max_x - 1);
+//                int ny = mMin(mMax(y + t * j, 0), max_y - 1);
+//
+//                uchar4 pixelRGBW = devBeforeGussian[ny * max_x + nx];
+//                double3 pixelRGB = make_double3(pixelRGBW.x, pixelRGBW.y, pixelRGBW.z);
+//
+//                double sigmaR = 2.0;
+//                double bilateralWeight = -SquaredLength(pixelRGBW - devPtr[offset]) / (2.0 * sigmaR * sigmaR);
+//                double weight = d_kernel[i + KERNEL_RADIUS] * exp(bilateralWeight);
+//                //weight = d_kernel[i + KERNEL_RADIUS];
+//                sumWeight += weight;
+//                result += pixelRGB * weight;
+//            }
+//        }
+//    }
+//
+//    result /= sumWeight;
+//    unsigned char r = static_cast<unsigned char>(result.x);
+//    unsigned char g = static_cast<unsigned char>(result.y);
+//    unsigned char b = static_cast<unsigned char>(result.z);
+//    devBeforeGussian[offset] = make_uchar4(r, g, b, 255);
+//    devPtr[offset] = make_uchar4(r, g, b, 255);
+//}
+
+__global__ void gaussianSeparate(double3* pic, double3* picBeforeGussian, double4* gBuffer, double* d_kernel, int max_x, int max_y, bool isHorizontal)
 {
-    int i = threadIdx.x + blockIdx.x * blockDim.x;
-    int j = threadIdx.y + blockIdx.y * blockDim.y;
-    if (i <= 0 || i >= max_x - 1 || j <= 0 || j >= max_y - 1) return;
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    if (x >= max_x || y >= max_y) return;
 
-    uchar4 result = make_uchar4(0, 0, 0, 255);
-    double gaussianKernel[3][3] = {
-        {1.0 / 16, 2.0 / 16, 1.0 / 16},
-        {2.0 / 16, 4.0 / 16, 2.0 / 16},
-        {1.0 / 16, 2.0 / 16, 1.0 / 16}
-    };
+    int offset = y * max_x + x;
 
-    // 3x3 高斯滤波
-    for (int dy = -1; dy <= 1; dy++) 
+    double4 gb = gBuffer[offset];
+    double3 normal = make_double3(gb.x, gb.y, gb.w);
+
+    // gaussian
+    double3 result = make_double3(0.0, 0.0, 0.0);
+    double sumWeight = 0.0;
+    for (int i = -KERNEL_RADIUS; i <= KERNEL_RADIUS; i++)
     {
-        for (int dx = -1; dx <= 1; dx++) 
+        int nx, ny;
+        if (isHorizontal)
         {
-            int ix = i + dx;
-            int iy = j + dy;
-            int offset = iy * max_x + ix;
-            result.x += devPtr[offset].x * gaussianKernel[dy + 1][dx + 1];
-            result.y += devPtr[offset].y * gaussianKernel[dy + 1][dx + 1];
-            result.z += devPtr[offset].z * gaussianKernel[dy + 1][dx + 1];
+            nx = mMin(mMax(x + i, 0), max_x - 1);
+            ny = y;
         }
+        else
+        {
+            nx = x;
+            ny = mMin(mMax(y + i, 0), max_y - 1);
+        }
+        double3 pixel = picBeforeGussian[ny * max_x + nx];
+        double4 gb_p = gBuffer[ny * max_x + nx];
+        double3 normal_p = make_double3(gb_p.x, gb_p.y, gb_p.w);
+
+        double sigmaR = 0.3;
+        double bilateralWeight = -SquaredLength(pixel - pic[offset]) / (2.0 * sigmaR * sigmaR);
+        double sigmaN = 0.3;
+        double normalWeight = -SquaredLength(normal - normal_p) / (2.0 * sigmaN * sigmaN);
+        double sigmaD = 0.3;
+        double depthWeight = -pow(gb.w - gb_p.w, 2) / (2.0 * sigmaD * sigmaD);
+        //normalWeight = 0.0;
+        double weight = d_kernel[i + KERNEL_RADIUS] * exp(bilateralWeight) * exp(normalWeight) * exp(depthWeight);
+        sumWeight += weight;
+        result += pixel * weight;
     }
 
-    int offset = j * max_x + i;
-    devPtr[offset] = result;
+    result /= sumWeight;
+
+    picBeforeGussian[offset] = result;
+    pic[offset] = result;
 }
 
-__global__ void addPrevious(uchar4* devPtr, uchar4* gBuffer, int max_x, int max_y)
+__global__ void addPrevious(double3* pic, double3* picPrevious, int max_x, int max_y)
+{
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    if (x >= max_x || y >= max_y) return;
+
+    int offset = y * max_x + x;
+
+    double alpha = 0.2;
+    double3 previous = picPrevious[offset];
+
+    //// Outlier Clamping
+    //double3 mean = make_double3(0.0, 0.0, 0.0);
+    //double N = 7.0 * 7.0;
+    //for (int i = -3; i < 3; i++)
+    //{
+    //    for (int j = -3; j < 3; j++)
+    //    {
+    //        int nx = mMin(mMax(x + i, 0), max_x - 1);
+    //        int ny = mMin(mMax(y + j, 0), max_y - 1);
+    //        mean += picPrevious[ny * max_x + nx];
+    //    }
+    //}
+    //mean /= N;
+    //double3 variance = make_double3(0.0, 0.0, 0.0);
+    //for (int i = -3; i < 3; i++)
+    //{
+    //    for (int j = -3; j < 3; j++)
+    //    {
+    //        int nx = mMin(mMax(x + i, 0), max_x - 1);
+    //        int ny = mMin(mMax(y + j, 0), max_y - 1);
+    //        double3 pixel = picPrevious[ny * max_x + nx];
+    //        variance.x += pow(pixel.x - mean.x, 2);
+    //        variance.y += pow(pixel.y - mean.y, 2);
+    //        variance.z += pow(pixel.z - mean.z, 2);
+    //    }
+    //}
+    //variance /= N;
+
+    ////double3 left = mean - variance;
+    //double3 left = make_double3(0.0, 0.0, 0.0);
+    ////double3 right = mean + variance;
+    //double3 right = make_double3(1.0, 1.0, 1.0);
+
+    pic[offset] = pic[offset] * alpha + previous * (1.0 - alpha);
+}
+
+__global__ void pic2RGBW(uchar4* devPtr, double3* pic, int max_x, int max_y)
 {
     int i = threadIdx.x + blockIdx.x * blockDim.x;
     int j = threadIdx.y + blockIdx.y * blockDim.y;
@@ -170,10 +327,17 @@ __global__ void addPrevious(uchar4* devPtr, uchar4* gBuffer, int max_x, int max_
 
     int offset = j * max_x + i;
 
-    double alpha = 0.2;
-    devPtr[offset].x = devPtr[offset].x * 0.2 + gBuffer[offset].x * (1.0 - alpha);
-    devPtr[offset].y = devPtr[offset].y * 0.2 + gBuffer[offset].y * (1.0 - alpha);
-    devPtr[offset].z = devPtr[offset].z * 0.2 + gBuffer[offset].z * (1.0 - alpha);
+    double3 pixel = pic[offset];
+    // gamma
+    pixel.x = sqrt(pixel.x);
+    pixel.y = sqrt(pixel.y);
+    pixel.z = sqrt(pixel.z);
+    // set color
+    unsigned char r = static_cast<unsigned char>(254.99 * CLAMP01(pixel.x));
+    unsigned char g = static_cast<unsigned char>(254.99 * CLAMP01(pixel.y));
+    unsigned char b = static_cast<unsigned char>(254.99 * CLAMP01(pixel.z));
+
+    devPtr[offset] = make_uchar4(r, g, b, 255);
 }
 
 

@@ -7,13 +7,28 @@ float Window::alphaX = 0.5;
 float Window::alphaY = 0.5;
 bool Window::glass = false;
 int Window::selectSampleCount = 64;
+int Window::currentType = 0;
 
-Window::Window(int w, int h, Camera* _camera, Scene* _scene) : width(w), height(h), tex(0)
+Window::Window(int w, int h, Camera* _camera, Scene* _scene) : width(w), height(h), tex(0), 
+renderType{ "RealTimeWithoutPass", "RealTime", "Normal", "Depth" }
 {
     camera = _camera;
     window = nullptr;
     scene = _scene;
     sampleCount = 1;
+
+    // 生成高斯核
+    double h_kernel[KERNEL_SIZE];
+    double sigma = 8.0;
+    for (int i = -KERNEL_RADIUS; i <= KERNEL_RADIUS; i++)
+    {
+        double w = exp(-(i * i) / (2.0 * sigma * sigma));
+        h_kernel[i + KERNEL_RADIUS] = w;
+    }
+
+    int kernelSize = sizeof(double) * KERNEL_SIZE;
+    cudaMalloc((void**)&d_kernel, kernelSize);
+    cudaMemcpy(d_kernel, h_kernel, kernelSize, cudaMemcpyHostToDevice);
 }
 
 Window::~Window()
@@ -223,6 +238,7 @@ void Window::Update()
     ImGui::SliderFloat("alphaX", &Window::alphaX, 0.1f, 1.0f);
     ImGui::SliderFloat("alphaY", &Window::alphaY, 0.1f, 1.0f);
     ImGui::Checkbox("isGlass", &Window::glass);
+    ImGui::Combo("renderType", &Window::currentType, renderType, IM_ARRAYSIZE(renderType));
     ImGui::SliderInt("spp", &Window::selectSampleCount, 1, 2048);
     ImGui::End();
 

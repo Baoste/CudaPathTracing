@@ -38,10 +38,15 @@ public:
     GLuint shaderProgram;
 
 public:
+    double* d_kernel;
+
+public:
     static float alphaX;
     static float alphaY;
     static int selectSampleCount;
     static bool glass;
+    const char* renderType[4];
+    static int currentType;
 
 public:
     Window(int w, int h, Camera* _camera, Scene* scene);

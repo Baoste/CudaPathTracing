@@ -39,8 +39,13 @@ int main()
 
     Window app(nx, ny, &camera, &scene);
     
-    uchar4* d_gBuffer;
-    cudaMalloc((void**)&d_gBuffer, nx * ny * sizeof(uchar4));
+    double3* d_pic, * d_picPrevious, * d_picBeforeGussian;
+    cudaMalloc((void**)&d_pic, nx * ny * sizeof(double3));
+    cudaMalloc((void**)&d_picPrevious, nx * ny * sizeof(double3));
+    cudaMalloc((void**)&d_picBeforeGussian, nx * ny * sizeof(double3));
+
+    double4* d_gBuffer;
+    cudaMalloc((void**)&d_gBuffer, nx * ny * sizeof(double4));
 
     if (app.Init())
     {
@@ -63,17 +68,50 @@ int main()
                     std::cout << "Rendering " << app.sampleCount << " sample count..." << std::endl;
                     preStats = app.paused;
                     t = preTime;
-                    render <<< blocks, threads >>> (app.devicePtr, d_gBuffer, scene.d_camera, scene.d_lightsIndex, scene.device.d_objs, scene.internalNodes, scene.lightsCount, nx, ny, sampleCount, t);
+                    render <<< blocks, threads >>> (app.devicePtr, d_pic, d_picPrevious, d_picBeforeGussian, d_gBuffer,
+                        scene.d_camera, scene.d_lightsIndex, scene.device.d_objs, scene.internalNodes, scene.lightsCount, 
+                        nx, ny, sampleCount, t, RenderType::STATIC);
                     continue;
                 }
-                render <<< blocks, threads >>> (app.devicePtr, d_gBuffer, scene.d_camera, scene.d_lightsIndex, scene.device.d_objs, scene.internalNodes, scene.lightsCount, nx, ny, sampleCount, t);
-                cudaDeviceSynchronize();
 
-                //gaussian <<< blocks, threads >>> (app.devicePtr, nx, ny);
-                //cudaDeviceSynchronize();
+                switch (app.currentType)
+                {
+                case 0:
+                    render << < blocks, threads >> > (app.devicePtr, d_pic, d_picPrevious, d_picBeforeGussian, d_gBuffer,
+                        scene.d_camera, scene.d_lightsIndex, scene.device.d_objs, scene.internalNodes, scene.lightsCount,
+                        nx, ny, sampleCount, t, RenderType::REAL_TIME_NOT_SAMPLE);
+                    cudaDeviceSynchronize();
+                    pic2RGBW << < blocks, threads >> > (app.devicePtr, d_pic, nx, ny);
+                    cudaDeviceSynchronize();
+                    break;
+                case 1:
+                    render << < blocks, threads >> > (app.devicePtr, d_pic, d_picPrevious, d_picBeforeGussian, d_gBuffer,
+                        scene.d_camera, scene.d_lightsIndex, scene.device.d_objs, scene.internalNodes, scene.lightsCount,
+                        nx, ny, sampleCount, t, RenderType::REAL_TIME);
+                    cudaDeviceSynchronize();
+                    gaussianSeparate <<< blocks, threads >>> (d_pic, d_picBeforeGussian, d_gBuffer, app.d_kernel, nx, ny, true);
+                    cudaDeviceSynchronize();
+                    gaussianSeparate <<< blocks, threads >>> (d_pic, d_picBeforeGussian, d_gBuffer, app.d_kernel, nx, ny, false);
+                    cudaDeviceSynchronize();
+                    addPrevious << < blocks, threads >> > (d_pic, d_picPrevious, nx, ny);
+                    cudaDeviceSynchronize();
+                    pic2RGBW << < blocks, threads >> > (app.devicePtr, d_pic, nx, ny);
+                    cudaDeviceSynchronize();
+                    break;
+                case 2:
+                    render << < blocks, threads >> > (app.devicePtr, d_pic, d_picPrevious, d_picBeforeGussian, d_gBuffer,
+                        scene.d_camera, scene.d_lightsIndex, scene.device.d_objs, scene.internalNodes, scene.lightsCount,
+                        nx, ny, sampleCount, t, RenderType::NORMAL);
+                    cudaDeviceSynchronize();
+                    break;
+                case 3:
+                    render << < blocks, threads >> > (app.devicePtr, d_pic, d_picPrevious, d_picBeforeGussian, d_gBuffer,
+                        scene.d_camera, scene.d_lightsIndex, scene.device.d_objs, scene.internalNodes, scene.lightsCount,
+                        nx, ny, sampleCount, t, RenderType::DEPTH);
+                    cudaDeviceSynchronize();
+                    break;
+                }
 
-                //addPrevious << < blocks, threads >> > (app.devicePtr, d_gBuffer, nx, ny);
-                //cudaDeviceSynchronize();
                 
                 if (parser.hasCloth)
                     scene.Update();

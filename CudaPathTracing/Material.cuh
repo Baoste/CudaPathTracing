@@ -34,14 +34,22 @@ public:
         
         if (type == MaterialType::M_SPECULAR_DIELECTRIC)
         {
-            //double refRatio = frontFace ? eta : (1.0 / eta);
-            //double F = FresnelDielectric(normal, V, L, refRatio);
-            //if (reflect)
-            //    return  F * hitColor / cosTheta_t;
-            //else
-            //    return (1.0 - F) * hitColor / cosTheta_t;
+            double refRatio = frontFace ? eta : (1.0 / eta);
+
             double cosTheta_t = fabs(Dot(normal, L));
-            return  hitColor / cosTheta_t;
+            double F = FresnelDielectric(normal, V, refRatio);
+
+            if (reflect)
+            {
+                return F * hitColor / cosTheta_t;
+            }
+            else
+            {
+                return (1.0 - F) * hitColor / cosTheta_t;
+            }
+
+            //double cosTheta_t = fabs(Dot(normal, L));
+            //return  hitColor / cosTheta_t;
         }
         else if (!reflect)
         {
@@ -52,7 +60,7 @@ public:
             if (Dot(wm, V) < 0.0) V = -V;
             if (Dot(wm, L) < 0.0) L = -L;
             double G = GeometrySmith(normal, V, L);
-            double F = FresnelDielectric(wm, V, L, refRatio);
+            double F = FresnelDielectric(wm, V, refRatio);
 
             double cosTheta_i = fabs(Dot(normal, V));
             double cosTheta_t = fabs(Dot(normal, L));
@@ -70,7 +78,7 @@ public:
             if (type == MaterialType::M_ROUGH_DIELECTRIC)
             {
                 n = 1.58;
-                k = 0.01;
+                k = 0.001;
             }
 
             double D = DistributionGGX(normal, H);
@@ -90,32 +98,23 @@ public:
     {
         if (type == MaterialType::M_SPECULAR_DIELECTRIC)
         {
-            double refRatio = frontFace ? (1.0 / eta) : eta;
+            double refRatio = frontFace ? eta : (1.0 / eta);
             double3 unitRayDirection = Unit(ray.direction);
-            double cosTheta = mMin(Dot(-unitRayDirection, normal), 1.0);
-            // È«·´Éä
-            if (refRatio * sqrt(1 - cosTheta * cosTheta) > 1.0)
-            {
-                direction = unitRayDirection - 2.0 * Dot(unitRayDirection, normal) * normal;
-                pdf = 1.0;
-                return;
-            }
-
-            double3 vPerp = refRatio * (unitRayDirection + Dot(-unitRayDirection, normal) * normal);
-            double3 vParallel = -sqrt(fabs(1.0 - SquaredLength(vPerp))) * normal;
-            double3 refractDir = Unit(vPerp + vParallel);
-            double R = FresnelDielectric(normal, -unitRayDirection, refractDir, refRatio);
-            // ·ÆÄù¶û·´Éä
+            double R = FresnelDielectric(normal, -unitRayDirection, refRatio);
+            // È«·´Éä or ·ÆÄù¶û·´Éä
             if (r3 < R)
             {
                 direction = unitRayDirection - 2.0 * Dot(unitRayDirection, normal) * normal;
-                pdf = 1.0;
+                pdf = R;
             }
             // ÕÛÉä
             else
             {
+                double3 vPerp = 1.0 / refRatio * (unitRayDirection + Dot(-unitRayDirection, normal) * normal);
+                double3 vParallel = -sqrt(fabs(1.0 - SquaredLength(vPerp))) * normal;
+                double3 refractDir = Unit(vPerp + vParallel);
                 direction = refractDir;
-                pdf = 1.0;
+                pdf = 1.0 - R;
             }
         }
         else if (type == MaterialType::M_ROUGH_DIELECTRIC)
@@ -129,7 +128,7 @@ public:
             double3 unitRayDirection = -Unit(ray.direction);
             double3 W_o = make_double3(Dot(unitRayDirection, u), Dot(unitRayDirection, v), Dot(unitRayDirection, w));
             double3 W_h = Unit(make_double3(alphaX * W_o.x, alphaY * W_o.y, W_o.z));
-            double3 T1 = (W_h.z < 0.99999f) ? Unit(Cross(make_double3(0, 0, 1), W_h)) : make_double3(1, 0, 0);
+            double3 T1 = (W_h.z < 0.99999) ? Unit(Cross(make_double3(0, 0, 1), W_h)) : make_double3(1, 0, 0);
             double3 T2 = Cross(W_h, T1);
             double r = sqrt(r1);
             double theta = 2 * PI * r2;
@@ -144,23 +143,11 @@ public:
             double3 sampleNormal = Unit(W_m.x * u + W_m.y * v + W_m.z * w);
             wm = sampleNormal;
 
-            double refRatio = frontFace ? (1.0 / eta) : eta;
+            double refRatio = frontFace ? eta : (1.0 / eta);
             
-            // È«·´Éä
             double cosTheta = mMin(Dot(-unitRayDirection, sampleNormal), 1.0);
-            if (refRatio * sqrt(1 - cosTheta * cosTheta) > 1.0)
-            {
-                pdf = -1.0;
-                return;
-            }
-            
-            double3 vPerp = refRatio * (unitRayDirection + Dot(-unitRayDirection, sampleNormal) * sampleNormal);
-            double3 vParallel = -sqrt(fabs(1.0 - SquaredLength(vPerp))) * sampleNormal;
-            double3 refractDir = Unit(vPerp + vParallel);
-            double3 W_i = make_double3(Dot(refractDir, u), Dot(refractDir, v), Dot(refractDir, w));
-
-            double R = FresnelDielectric(sampleNormal, -unitRayDirection, Unit(refractDir), refRatio);
-            // ·ÆÄù¶û·´Éä
+            double R = FresnelDielectric(sampleNormal, -unitRayDirection, refRatio);
+            // È«·´Éä or ·ÆÄù¶û·´Éä
             if (r3 < R)
             {
                 brdf(ray, normal, direction, pdf, r1, r2);
@@ -169,6 +156,10 @@ public:
             // ÕÛÉä
             else
             {
+                double3 vPerp = 1.0 / refRatio * (unitRayDirection + Dot(-unitRayDirection, sampleNormal) * sampleNormal);
+                double3 vParallel = -sqrt(fabs(1.0 - SquaredLength(vPerp))) * sampleNormal;
+                double3 refractDir = Unit(vPerp + vParallel);
+                double3 W_i = make_double3(Dot(refractDir, u), Dot(refractDir, v), Dot(refractDir, w));
                 direction = refractDir;
                 // ÉáÆúÔÚÍ¬Ò»°ëÇò
                 if (Dot(direction, normal) > 0.0)
@@ -212,14 +203,14 @@ private:
     __host__ __device__ void brdf(const Ray& ray, const double3 normal, double3& direction, double& pdf, double r1, double r2)
     {
         double3 w = normal;
-        double3 a = (fabs(w.x) > 0.9) ? make_double3(0.0, 1.0, 0.0) : make_double3(1.0, 0.0, 0.0);
+        double3 a = (fabs(w.x) > 0.99999) ? make_double3(0.0, 1.0, 0.0) : make_double3(1.0, 0.0, 0.0);
         double3 u = Unit(Cross(w, a));
         double3 v = Cross(w, u);
 
         double3 unitRayDirection = -Unit(ray.direction);
         double3 W_o = make_double3(Dot(unitRayDirection, u), Dot(unitRayDirection, v), Dot(unitRayDirection, w));
         double3 W_h = Unit(make_double3(alphaX * W_o.x, alphaY * W_o.y, W_o.z));
-        double3 T1 = (W_h.z < 0.99999f) ? Unit(Cross(make_double3(0, 0, 1), W_h)) : make_double3(1, 0, 0);
+        double3 T1 = (W_h.z < 0.99999) ? Unit(Cross(make_double3(0, 0, 1), W_h)) : make_double3(1, 0, 0);
         double3 T2 = Cross(W_h, T1);
         double r = sqrt(r1);
         double theta = 2 * PI * r2;
@@ -257,7 +248,7 @@ private:
     {
         double3 zAxis = N;
         double3 up = make_double3(0.0, 1.0, 0.0);
-        if (fabs(Dot(zAxis, up)) > 0.999f)
+        if (fabs(Dot(zAxis, up)) > 0.99999)
             up = make_double3(1.0, 0.0, 0.0);
         double3 xAxis = Unit(Cross(up, zAxis));
         double3 yAxis = Cross(zAxis, xAxis);
@@ -309,12 +300,26 @@ private:
         return (Norm(r_parl) + Norm(r_perp)) / 2.0;
     }
     // Transmission Fresnel
-    __host__ __device__ double FresnelDielectric(double3 N, double3 V, double3 L, double eta)
+    //__host__ __device__ double FresnelDielectric(double3 N, double3 V, double3 L, double eta)
+    //{
+    //    double cosTheta_i = fabs(Dot(N, V));
+    //    double cosTheta_t = fabs(Dot(N, L));
+    //    double r_parl = (eta * cosTheta_i - cosTheta_t) / (eta * cosTheta_i + cosTheta_t);
+    //    double r_perp = (cosTheta_i - eta * cosTheta_t) / (cosTheta_i + eta * cosTheta_t);
+    //    return (r_parl * r_parl + r_perp * r_perp) / 2.0;
+    //}
+    __host__ __device__ double FresnelDielectric(double3 N, double3 V, double eta)
     {
         double cosTheta_i = fabs(Dot(N, V));
-        double cosTheta_t = fabs(Dot(N, L));
+        double sinTheta_i = sqrt(mMax(0.0, 1.0 - cosTheta_i * cosTheta_i));
+        double sinTheta_t = sinTheta_i / eta;
+        // È«·´Éä
+        if (sinTheta_t >= 1.0)
+            return 1.0;
+
+        double cosTheta_t = sqrt(mMax(0.0, 1.0 - sinTheta_t * sinTheta_t));
         double r_parl = (eta * cosTheta_i - cosTheta_t) / (eta * cosTheta_i + cosTheta_t);
         double r_perp = (cosTheta_i - eta * cosTheta_t) / (cosTheta_i + eta * cosTheta_t);
-        return (r_parl * r_parl + r_perp * r_perp) / 2.0;
+        return (r_parl * r_parl + r_perp * r_perp) * 0.5;
     }
 };
