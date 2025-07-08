@@ -15,10 +15,11 @@ struct CameraInfo
 {
     double3 background;
     double width;
+    double aspectRatio;
     double3 lookFrom;
     double3 lookAt;
     double vFov;
-    CameraInfo() : background{ 0.0, 0.0, 0.0 }, width(0.0), lookFrom{ 0.0, 0.0, 1.0 }, lookAt{ 0.0, 0.0, 0.0 }, vFov(90.0) {}
+    CameraInfo() : background{ 0.0, 0.0, 0.0 }, width(0.0), aspectRatio(16.0 / 9.0), lookFrom{ 0.0, 0.0, 1.0 }, lookAt{ 0.0, 0.0, 0.0 }, vFov(90.0) {}
 };
 
 struct LightInfo

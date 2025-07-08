@@ -28,10 +28,10 @@ public:
 
 public:
     // Load mesh from a file
-    bool loadFromFile(const std::string& filename, const double scale, const double rotation = -30.0)
+    bool loadFromFile(const std::string& filename, double3& minBoundary, double3& maxBoundary, const double scale, const double rotation = -30.0)
     {
         triangles.clear();
-        loadMesh(filename, triangles, scale, rotation);
+        loadMesh(filename, triangles, scale, rotation, minBoundary, maxBoundary);
         return !triangles.empty();
     }
 
@@ -46,7 +46,7 @@ public:
     }
 
 private:
-    void loadMesh(const std::string& filename, std::vector<MeshTriangle>& triangles, const double scale, const double rotation)
+    void loadMesh(const std::string& filename, std::vector<MeshTriangle>& triangles, const double scale, const double rotation, double3& minBoundary, double3& maxBoundary)
     {
         tinyobj::attrib_t attrib;
         std::vector<tinyobj::shape_t> shapes;
@@ -93,6 +93,13 @@ private:
                     y = Dot(p, rotation_y);
                     z = Dot(p, rotation_z);
                     p = make_double3(x, y, z) * scale;
+
+                    minBoundary.x = mMin(minBoundary.x, p.x);
+                    minBoundary.y = mMin(minBoundary.y, p.y);
+                    minBoundary.z = mMin(minBoundary.z, p.z);
+                    maxBoundary.x = mMax(maxBoundary.x, p.x);
+                    maxBoundary.y = mMax(maxBoundary.y, p.y);
+                    maxBoundary.z = mMax(maxBoundary.z, p.z);
 
                     if (v == 0) tri.p0 = p;
                     else if (v == 1) tri.p1 = p;

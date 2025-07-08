@@ -8,27 +8,18 @@ float Window::alphaY = 0.5;
 bool Window::glass = false;
 int Window::selectSampleCount = 64;
 int Window::currentType = 0;
+float Window::sigmaG = 8.0;
+float Window::sigmaR = 5.0;
+float Window::sigmaN = 0.1;
+float Window::sigmaD = 0.2;
 
-Window::Window(int w, int h, Camera* _camera, Scene* _scene) : width(w), height(h), tex(0), 
+Window::Window(int w, int h, Camera* _camera, Scene* _scene) : width(w), height(h), tex(0), deltaTime(0.0),
 renderType{ "RealTimeWithoutPass", "RealTime", "Normal", "Depth" }
 {
     camera = _camera;
     window = nullptr;
     scene = _scene;
     sampleCount = 1;
-
-    // 生成高斯核
-    double h_kernel[KERNEL_SIZE];
-    double sigma = 8.0;
-    for (int i = -KERNEL_RADIUS; i <= KERNEL_RADIUS; i++)
-    {
-        double w = exp(-(i * i) / (2.0 * sigma * sigma));
-        h_kernel[i + KERNEL_RADIUS] = w;
-    }
-
-    int kernelSize = sizeof(double) * KERNEL_SIZE;
-    cudaMalloc((void**)&d_kernel, kernelSize);
-    cudaMemcpy(d_kernel, h_kernel, kernelSize, cudaMemcpyHostToDevice);
 }
 
 Window::~Window()
@@ -235,11 +226,22 @@ void Window::Update()
 
     // GUI 窗口
     ImGui::Begin("Config");
-    ImGui::SliderFloat("alphaX", &Window::alphaX, 0.1f, 1.0f);
-    ImGui::SliderFloat("alphaY", &Window::alphaY, 0.1f, 1.0f);
+    // fps
+    fpsCurve[fpsIndex] = 1.0f / deltaTime;
+    fpsIndex = (fpsIndex + 1) % fpsCurveSize;
+    ImGui::PlotLines("FPS", fpsCurve, fpsCurveSize, fpsIndex,
+        nullptr, 0.0f, 60.0f, ImVec2(0, 100));
+    // config
+    ImGui::SliderFloat("alphaX", &Window::alphaX, 0.01f, 1.0f);
+    ImGui::SliderFloat("alphaY", &Window::alphaY, 0.01f, 1.0f);
     ImGui::Checkbox("isGlass", &Window::glass);
     ImGui::Combo("renderType", &Window::currentType, renderType, IM_ARRAYSIZE(renderType));
     ImGui::SliderInt("spp", &Window::selectSampleCount, 1, 2048);
+    // sigma
+    ImGui::SliderFloat("sigmaG", &Window::sigmaG, 1.0f, 16.0f);
+    ImGui::SliderFloat("sigmaR", &Window::sigmaR, 0.01f, 10.0f);
+    ImGui::SliderFloat("sigmaN", &Window::sigmaN, 0.01f, 10.0f);
+    ImGui::SliderFloat("sigmaD", &Window::sigmaD, 0.01f, 1.0f);
     ImGui::End();
 
     // 渲染
@@ -273,40 +275,37 @@ bool Window::PollInput()
 
     bool moved = false;
     double moveSpeed = 1.0;
-    double deltaTime = 0.1;
     double phi = 0.0;
     double theta = 0.0;
     double x = 0.0;
-    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
-        theta += moveSpeed * deltaTime;
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS || GLFW_RELEASE) {
+        theta += moveSpeed * deltaTime * glfwGetKey(window, GLFW_KEY_W);
         moved = true;
     }
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
-        theta -= moveSpeed * deltaTime;
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS || GLFW_RELEASE) {
+        theta -= moveSpeed * deltaTime * glfwGetKey(window, GLFW_KEY_S);
         moved = true;
     }
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
-        phi -= moveSpeed * deltaTime;
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS || GLFW_RELEASE) {
+        phi -= moveSpeed * deltaTime * glfwGetKey(window, GLFW_KEY_A);
         moved = true;
     }
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
-        phi += moveSpeed * deltaTime;
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS || GLFW_RELEASE) {
+        phi += moveSpeed * deltaTime * glfwGetKey(window, GLFW_KEY_D);
         moved = true;
     }
-    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
-        x += 4.0 * moveSpeed * deltaTime;
+    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS || GLFW_RELEASE) {
+        x += 4.0 * moveSpeed * deltaTime * glfwGetKey(window, GLFW_KEY_Q);
         moved = true;
     }
-    if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) {
-        x -= 4.0 * moveSpeed * deltaTime;
+    if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS || GLFW_RELEASE) {
+        x -= 4.0 * moveSpeed * deltaTime * glfwGetKey(window, GLFW_KEY_E);
         moved = true;
     }
     if (moved)
-    {
         camera->move(phi, theta, x);
-        return true;
-    }
-    return false;
+    camera->isMoving = moved;
+    return moved;
 }
 
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)

@@ -64,7 +64,8 @@ public:
 
             double cosTheta_i = fabs(Dot(normal, V));
             double cosTheta_t = fabs(Dot(normal, L));
-            double denom = pow(fabs(Dot(L, wm)) + fabs(Dot(V, wm)) / refRatio, 2);
+            double mbase = fabs(Dot(L, wm)) + fabs(Dot(V, wm)) / refRatio;
+            double denom = mbase * mbase;
 
             double specular = (1.0 - F) * D * G * fabs(Dot(wm, L) * Dot(wm, V) / (cosTheta_i * cosTheta_t * denom));
 
@@ -168,7 +169,8 @@ public:
                     return;
                 }
                 // ? W_i 和 W_m 同方向？
-                double denom = pow(Dot(-W_i, W_m) + Dot(W_o, W_m) / refRatio, 2);
+                double mbase = Dot(-W_i, W_m) + Dot(W_o, W_m) / refRatio;
+                double denom = mbase * mbase;
                 double dwm_dwi = fabs(Dot(W_i, W_m)) / denom;
                 pdf = GeometrySmith(normal, unitRayDirection) / W_o.z * DistributionGGX(normal, sampleNormal) * Dot(W_o, W_m) * dwm_dwi * (1.0 - R);
             }
@@ -247,7 +249,7 @@ private:
     __host__ __device__ double3 worldToLocal(double3 N, double3 W)
     {
         double3 zAxis = N;
-        double3 up = make_double3(0.0, 1.0, 0.0);
+        double3 up = make_double3(0.0, 0.0, 1.0);
         if (fabs(Dot(zAxis, up)) > 0.99999)
             up = make_double3(1.0, 0.0, 0.0);
         double3 xAxis = Unit(Cross(up, zAxis));
@@ -264,9 +266,13 @@ private:
         double sinPhi = w.y / sinTheta;
 
         double theta = acos(mMax(Dot(N, H), 0.0));
-        double tan2Theta = pow(tan(theta), 2);
-        double cos4Theta = pow(cos(theta), 4);
-        double e = tan2Theta * (pow(cosPhi / alphaX, 2) + pow(sinPhi / alphaY, 2));
+        double tanTheta = tan(theta);
+        double cosTheta = cos(theta);
+        double tan2Theta = tanTheta * tanTheta;
+        double cos4Theta = pow(cosTheta, 4);
+        double cDa = cosPhi / alphaX;
+        double sDa = sinPhi / alphaY;
+        double e = tan2Theta * (cDa * cDa + sDa * sDa);
         return 1.0 / (PI * alphaX * alphaY * cos4Theta * (1 + e) * (1 + e));
     }
     __host__ __device__ double lambda(double3 N, double3 R)

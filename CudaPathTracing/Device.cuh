@@ -128,13 +128,13 @@ __global__ inline void updateClothToDevice(Hittable* d_objs, unsigned int* d_clo
     }
 }
 
-__global__ inline void generateMortonCodes(Hittable* d_objs, unsigned int* d_mortons, unsigned int* d_objsIdx, const int size)
+__global__ inline void generateMortonCodes(Hittable* d_objs, unsigned int* d_mortons, unsigned int* d_objsIdx, const int size, const double3 sceneMin, const double3 sceneMax)
 {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i < size)
     {
         //printf("Object %d: Center: (%f, %f, %f)\n", i, d_objs[i].center.x, d_objs[i].center.y, d_objs[i].center.z);
-        d_mortons[i] = morton3D(d_objs[i].center);
+        d_mortons[i] = morton3D(d_objs[i].center, sceneMin, sceneMax);
         d_objsIdx[i] = i;
     }
 }
@@ -161,11 +161,17 @@ public:
         cudaMalloc((void**)&d_clothPtr, sizeof(unsigned int));
         registerDevice << <1, 1 >> > (d_objPtr, d_lightPtr);
     }
-    void buildBVH(Hittable* d_objs, Node* leafNodes, Node* internalNodes, unsigned int* d_mortons, unsigned int* d_objsIdx, const int size)
+    void buildBVH(Hittable* d_objs, Node* leafNodes, Node* internalNodes, unsigned int* d_mortons, unsigned int* d_objsIdx, const int size, double3 minBoundary, double3 maxBoundary)
     {
         int threadsPerBlock = 256;
         int blocks = (size + threadsPerBlock - 1) / threadsPerBlock;
-        generateMortonCodes << <blocks, threadsPerBlock >> > (d_objs, d_mortons, d_objsIdx, size);
+
+        double3 expand = make_double3(1.0, 1.0, 1.0) * 7.0;
+        double3 sceneMin = minBoundary - expand;
+        double3 sceneMax = maxBoundary + expand;
+        printf("Scene Boundary: (%f, %f, %f) - (%f, %f, %f)\n", sceneMin.x, sceneMin.y, sceneMin.z, sceneMax.x, sceneMax.y, sceneMax.z);
+
+        generateMortonCodes << <blocks, threadsPerBlock >> > (d_objs, d_mortons, d_objsIdx, size, sceneMin, sceneMax);
         checkCudaErrors(cudaDeviceSynchronize());
         // sort
         thrust::device_ptr<unsigned int> d_keys(d_mortons);

@@ -4,6 +4,10 @@
 Camera::Camera(int _width, double _aspectRatio, Color _background, double3 _lookFrom, double3 _lookAt, double _vFov)
     : width(_width), aspectRatio(_aspectRatio), background(_background), lookFrom(_lookFrom), lookAt(_lookAt), vFov(_vFov)
 {
+    isMoving = false;
+    preLookFrom = _lookFrom;
+    preLookAt = _lookAt;
+
     height = width / aspectRatio < 1 ? 1 : width / aspectRatio;
 
     double focalLength = Length(lookFrom - lookAt);

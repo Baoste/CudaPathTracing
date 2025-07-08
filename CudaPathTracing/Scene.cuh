@@ -35,6 +35,9 @@ public:
     int allCount;
     int lightsCount;
 
+    double3 minBoundary;
+    double3 maxBoundary;
+
 private:
     unsigned int* d_mortons;
     unsigned int* d_objIdx;
@@ -53,6 +56,9 @@ public:
         lightsCount = 0;
         cudaMalloc((void**)&d_camera, sizeof(Camera));
         cudaMalloc((void**)&d_selectPtr, sizeof(int));
+
+        minBoundary = make_double3(-20.0, -20.0, -20.0);
+        maxBoundary = make_double3(20.0, 20.0, 20.0);
     }
     ~Scene()
     {
@@ -89,7 +95,7 @@ public:
             cudaMalloc((void**)&d_objIdxExceptCloth, allCount * sizeof(unsigned int));
             cudaMalloc((void**)&leafNodesExceptCloth, allCount * sizeof(Node));
             cudaMalloc((void**)&internalNodesExceptCloth, (allCount - 1) * sizeof(Node));
-            device.buildBVH(device.d_objs, leafNodesExceptCloth, internalNodesExceptCloth, d_mortonsExceptCloth, d_objIdxExceptCloth, allCount);
+            device.buildBVH(device.d_objs, leafNodesExceptCloth, internalNodesExceptCloth, d_mortonsExceptCloth, d_objIdxExceptCloth, allCount, minBoundary, maxBoundary);
             checkCudaErrors(cudaDeviceSynchronize());
 
             // allocate cloth triangles to device
@@ -114,7 +120,7 @@ public:
             cudaMalloc((void**)&internalNodes, (allCount - 1) * sizeof(Node));
             cudaMalloc((void**)&leafNodes, allCount * sizeof(Node));
 
-            device.buildBVH(device.d_objs, leafNodes, internalNodes, d_mortons, d_objIdx, allCount);
+            device.buildBVH(device.d_objs, leafNodes, internalNodes, d_mortons, d_objIdx, allCount, minBoundary, maxBoundary);
             checkCudaErrors(cudaDeviceSynchronize());
         }
     }
@@ -142,7 +148,7 @@ public:
         updateClothToDevice << < 1, 1 >> > (device.d_objs, device.d_clothPtr, d_X, d_triIdx, division - 1);
         checkCudaErrors(cudaDeviceSynchronize());
 
-        device.buildBVH(device.d_objs, leafNodes, internalNodes, d_mortons, d_objIdx, allCount);
+        device.buildBVH(device.d_objs, leafNodes, internalNodes, d_mortons, d_objIdx, allCount, minBoundary, maxBoundary);
         checkCudaErrors(cudaDeviceSynchronize());
 
     }
@@ -210,7 +216,7 @@ public:
         cudaMemcpy(&prePtr, device.d_objPtr, sizeof(unsigned int), cudaMemcpyDeviceToHost);
 
         Mesh mesh;
-        mesh.loadFromFile(fileName, scale, rotation);
+        mesh.loadFromFile(fileName, minBoundary, maxBoundary, scale, rotation);
         mesh.transform(position);
         int num = mesh.triangles.size();
 

@@ -349,7 +349,7 @@ public:
 
         double denom = Dot(ray.direction, normal);
         // parallel or back face
-        if (fabs(denom) < 1e-6)
+        if (fabs(denom) < 1e-6 || denom > 0.0)
             return false;
         double t = Dot(center - ray.origin, normal) / denom;
         // back face or far away

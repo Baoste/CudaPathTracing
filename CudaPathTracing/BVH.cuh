@@ -20,11 +20,9 @@ __device__ inline unsigned int expandBits(unsigned int v)
 
 // Calculates a 30-bit Morton code for the
 // given 3D point located within the unit cube [0,1].
-__device__ inline unsigned int morton3D(double3 v)
+__device__ inline unsigned int morton3D(double3 v, const double3 sceneMin, const double3 sceneMax)
 {
     // normalize
-    double3 sceneMin = make_double3(-6.0, -4.1, -6.0);
-    double3 sceneMax = make_double3(6.0, 4.0, 6.0);
     double3 normalized;
 
     normalized.x = (v.x - sceneMin.x) / (sceneMax.x - sceneMin.x);

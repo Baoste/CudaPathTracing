@@ -11,7 +11,7 @@ public:
     Color background;
     double aspectRatio;
     int width;
-    int height = 1;
+    int height;
     int samplesPerPixel = 1;
     int maxDepth = 1;
 
@@ -20,6 +20,10 @@ public:
     double3 vUp = make_double3(0, 1, 0);
     // angel
     double vFov;
+
+    double3 preLookFrom;
+    double3 preLookAt;
+    bool isMoving;
 
     double3 u, v, w;
 
@@ -36,8 +40,12 @@ public:
         double3 pixel = pixel_center + x * delta_h + y * delta_v;
         return Ray(lookFrom, pixel - lookFrom, 0.0);
     }
+
     __host__ __device__ inline void move(double p, double t, double x)
     {
+        preLookFrom = lookFrom;
+        preLookAt = lookAt;
+
         // TODO need to change axies
         double3 offset = lookFrom - lookAt;
         double focalLength = Length(offset);
@@ -69,6 +77,37 @@ public:
         // upper left corner of the image
         double3 _p_ul = lookFrom - horizontal / 2 - vertical / 2 - focalLength * w;
         pixel_center = _p_ul + delta_h / 2 + delta_v / 2;
+    }
+
+    __host__ __device__ inline int2 getPrePositionInImg(double3 position) const
+    {
+        // invalid
+        if (position.x + position.y > INF)
+            return make_int2(-1, -1);
+
+        double3 dir = Unit(position - preLookFrom);
+        double3 forward = Unit(preLookAt - preLookFrom);
+        double3 right = Unit(Cross(forward, vUp));
+        double3 up = Cross(right, forward);
+
+        double focalLength = Length(preLookFrom - preLookAt);
+        double theta = DegreesToRadians(vFov);
+        double h = tan(theta / 2);
+        double viewportHeight = 2.0 * h * focalLength;
+        double viewportWidth = static_cast<double>(width) / height * viewportHeight;
+
+        double px = Dot(dir, right);
+        double py = Dot(dir, up);
+        double pz = Dot(dir, forward);
+
+        double x = 0.5 + (px / pz) * (focalLength / viewportWidth);
+        double y = 0.5 + (py / pz) * (focalLength / viewportHeight);
+
+        if (x < 0.0 || y < 0.0 || x > 1.0 || y > 1.0)
+            return make_int2(-1, -1);
+        int i = static_cast<int>(x * width);
+        int j = static_cast<int>(y * height);
+        return make_int2(i, j);
     }
 
 private:

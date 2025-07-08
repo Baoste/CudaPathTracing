@@ -91,7 +91,7 @@ __host__ __device__ inline double SquaredLength(const double3& v)
 
 __host__ __device__ inline double Length(const double3& v)
 {
-    return std::sqrt(SquaredLength(v));
+    return sqrt(SquaredLength(v));
 }
 
 __host__ __device__ inline double Dot(const double3& v1, const double3& v2)
@@ -150,6 +150,30 @@ __host__ __device__ inline unsigned char SquaredLength(const uchar4& v)
     return v.x * v.x + v.y * v.y + v.z * v.z + v.w * v.w;
 }
 
+
+// double2
+__host__ __device__ inline double2 operator/(double2 v, double t)
+{
+    return make_double2(v.x / t, v.y / t);
+}
+__host__ __device__ inline double SquaredLength(const double2& v)
+{
+    return v.x * v.x + v.y * v.y;
+}
+
+__host__ __device__ inline double Length(const double2& v)
+{
+    return sqrt(SquaredLength(v));
+}
+
+__host__ __device__ inline double Dot(const double2& v1, const double2& v2)
+{
+    return v1.x * v2.x + v1.y * v2.y;
+}
+__host__ __device__ inline double2 Unit(const double2& v)
+{
+    return v / Length(v);
+}
 
 // Complex
 using Complex = double2;

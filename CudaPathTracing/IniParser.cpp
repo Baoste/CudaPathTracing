@@ -38,6 +38,7 @@ void IniParser::Parse(const std::string& filename)
         {
             if (key == "background") camera.background = parseColor(value);
             else if (key == "width") camera.width = std::stoi(value);
+            else if (key == "aspectRatio") camera.aspectRatio = std::stod(value);
             else if (key == "lookFrom") camera.lookFrom = parseVec3(value);
             else if (key == "lookAt") camera.lookAt = parseVec3(value);
             else if (key == "vFov") camera.vFov = std::stod(value);
