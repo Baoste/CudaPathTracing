@@ -55,7 +55,7 @@ __global__ void render(uchar4* devPtr, double3* pic, double3* picPrevious, doubl
         while (true) 
         {
             HitRecord record;
-            HitRecord tmp;
+            HitRecord lightRecord;
 
             // if no hit, break
             if (traverseIterative(internalNodes, objs, ray, record) < 0)
@@ -66,7 +66,7 @@ __global__ void render(uchar4* devPtr, double3* pic, double3* picPrevious, doubl
             // if hit light
             if (record.material->type == MaterialType::M_LIGHT)
             {
-                radiance += throughput * record.material->color;
+                radiance += throughput * record.hitColor;
                 break;
             }
 
@@ -82,7 +82,6 @@ __global__ void render(uchar4* devPtr, double3* pic, double3* picPrevious, doubl
                 double lightWidth = light.width;
                 double lightHeight = light.width;
                 double pdfLight = 1.0 / (lightWidth * lightHeight);
-                double3 lightIntensity = light.material.color;
                 double3 lightCenter = light.center;
                 double3 lightPos = lightCenter +
                     (curand_uniform_double(&state) - 0.5) * lightWidth * light.edgeU +
@@ -90,10 +89,10 @@ __global__ void render(uchar4* devPtr, double3* pic, double3* picPrevious, doubl
                 direction = Unit(lightPos - record.hitPos);
                 Ray sampleRay = Ray(record.hitPos, direction, 0.0);
 
-                int obstacleToLight = traverseIterative(internalNodes, objs, sampleRay, tmp);
+                int obstacleToLight = traverseIterative(internalNodes, objs, sampleRay, lightRecord);
                 if (Dot(direction, record.normal) > 0.0 && Dot(-direction, light.normal) > 0.0 && obstacleToLight == lightsIndex[k])
                 {
-                    double3 colorLight = lightIntensity * record.getFr(ray, direction) * Dot(direction, record.normal) * Dot(-direction, light.normal) / SquaredLength(lightPos - record.hitPos) / pdfLight;
+                    double3 colorLight = lightRecord.hitColor * record.getFr(ray, direction) * Dot(direction, record.normal) * Dot(-direction, light.normal) / SquaredLength(lightPos - record.hitPos) / pdfLight;
                     radiance += throughput * colorLight;
                 }
             }

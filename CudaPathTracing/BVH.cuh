@@ -24,7 +24,6 @@ __device__ inline unsigned int morton3D(double3 v, const double3 sceneMin, const
 {
     // normalize
     double3 normalized;
-
     normalized.x = (v.x - sceneMin.x) / (sceneMax.x - sceneMin.x);
     normalized.y = (v.y - sceneMin.y) / (sceneMax.y - sceneMin.y);
     normalized.z = (v.z - sceneMin.z) / (sceneMax.z - sceneMin.z);

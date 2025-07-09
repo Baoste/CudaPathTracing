@@ -133,7 +133,6 @@ __global__ inline void generateMortonCodes(Hittable* d_objs, unsigned int* d_mor
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i < size)
     {
-        //printf("Object %d: Center: (%f, %f, %f)\n", i, d_objs[i].center.x, d_objs[i].center.y, d_objs[i].center.z);
         d_mortons[i] = morton3D(d_objs[i].center, sceneMin, sceneMax);
         d_objsIdx[i] = i;
     }
@@ -169,6 +168,11 @@ public:
         double3 expand = make_double3(1.0, 1.0, 1.0) * 7.0;
         double3 sceneMin = minBoundary - expand;
         double3 sceneMax = maxBoundary + expand;
+        if (sceneMin.x > sceneMax.x)
+        {
+            sceneMin = make_double3(-20.0, -20.0, -20.0);
+            sceneMax = make_double3(20.0, 20.0, 20.0);
+        }
         printf("Scene Boundary: (%f, %f, %f) - (%f, %f, %f)\n", sceneMin.x, sceneMin.y, sceneMin.z, sceneMax.x, sceneMax.y, sceneMax.z);
 
         generateMortonCodes << <blocks, threadsPerBlock >> > (d_objs, d_mortons, d_objsIdx, size, sceneMin, sceneMax);

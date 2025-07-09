@@ -30,11 +30,16 @@ public:
         frontFace = Dot(ray.direction, outwardNormal) < 0;
         normal = frontFace ? outwardNormal : -outwardNormal;
     }
-    __device__ void sampleTexture(const unsigned char* texture, const double width, const double height, const double uu, const double vv)
+
+    __device__ void sampleTexture(const double3 color)
+    {
+        hitColor = color;
+    }
+    __device__ void sampleTexture(const double3 color, const unsigned char* texture, const double width, const double height, const double uu, const double vv)
     {
         if (texture == NULL)
         {
-            hitColor = make_double3(-1.0, -1.0, -1.0);
+            sampleTexture(color);
             return;
         }
         int x = mMin(mMax(int(uu * width), 0), width - 1);

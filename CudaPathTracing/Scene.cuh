@@ -57,8 +57,8 @@ public:
         cudaMalloc((void**)&d_camera, sizeof(Camera));
         cudaMalloc((void**)&d_selectPtr, sizeof(int));
 
-        minBoundary = make_double3(-20.0, -20.0, -20.0);
-        maxBoundary = make_double3(20.0, 20.0, 20.0);
+        minBoundary = make_double3(INF, INF, INF);
+        maxBoundary = make_double3(-INF, -INF, -INF);
     }
     ~Scene()
     {

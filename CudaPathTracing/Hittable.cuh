@@ -42,6 +42,8 @@ public:
         if (t < t_min || t > t_max)
             return false;
 
+        record.sampleTexture(material.color);
+
         record.hitPos = ray.at(t);
         record.t = t;
         record.material = &material;
@@ -106,7 +108,7 @@ public:
         // get texture
         double uu = (1.0 - u - v) * uv0.x + u * uv1.x + v * uv2.x;
         double vv = (1.0 - u - v) * uv0.y + u * uv1.y + v * uv2.y;
-        record.sampleTexture(texture, width, height, uu, vv);
+        record.sampleTexture(material.color, texture, width, height, uu, vv);
 
         record.hitPos = ray.at(t);
         record.t = t;
@@ -363,6 +365,8 @@ public:
         double v = Dot(diff, edgeV);
         if (fabs(u) <= width / 2.0 && fabs(v) <= height / 2.0)
         {
+            record.sampleTexture(material.color);
+
             record.hitPos = hitPoint;
             record.t = t;
             record.material = &material;

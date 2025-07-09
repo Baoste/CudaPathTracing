@@ -23,9 +23,6 @@ public:
 
     __host__ __device__ double3 fr(double3 hitColor, const Ray& ray, const double3 normal, const double3 direction, const double3 wm, bool frontFace)
     {
-        if (hitColor.x < 0.0 && hitColor.y < 0.0 && hitColor.z < 0.0)
-            hitColor = color;
-
         double3 V = Unit(-ray.direction);   // 视线方向
         double3 L = Unit(direction);        // 光源方向
         double3 H = Unit(V + L);
@@ -261,15 +258,14 @@ private:
     __host__ __device__ double DistributionGGX(double3 N, double3 H)
     {
         double3 w = worldToLocal(N, H);
-        double sinTheta = sqrt(1 - w.z * w.z);
+        double sinTheta = sqrt(1.0 - w.z * w.z);
         double cosPhi = w.x / sinTheta;
         double sinPhi = w.y / sinTheta;
 
-        double theta = acos(mMax(Dot(N, H), 0.0));
-        double tanTheta = tan(theta);
-        double cosTheta = cos(theta);
-        double tan2Theta = tanTheta * tanTheta;
-        double cos4Theta = pow(cosTheta, 4);
+        double cos2Theta = w.z * w.z;
+        double sin2Theta = 1.0 - cos2Theta;
+        double tan2Theta = sin2Theta / cos2Theta;
+        double cos4Theta = cos2Theta * cos2Theta;
         double cDa = cosPhi / alphaX;
         double sDa = sinPhi / alphaY;
         double e = tan2Theta * (cDa * cDa + sDa * sDa);
