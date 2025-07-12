@@ -18,7 +18,7 @@ inline void check_cuda(cudaError_t result, char const* const func, const char* c
     }
 }
 
-const int MAXTRIANGLE = 300000;
+const int MAXTRIANGLE = 1000000;
 
 __global__ inline void registerDevice(unsigned int* d_objPtr, unsigned int* d_lightPtr)
 {
@@ -133,7 +133,7 @@ __global__ inline void generateMortonCodes(Hittable* d_objs, unsigned int* d_mor
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i < size)
     {
-        d_mortons[i] = morton3D(d_objs[i].center, sceneMin, sceneMax);
+        d_mortons[i] = morton3D(d_objs[i].center, sceneMin, sceneMax, i);
         d_objsIdx[i] = i;
     }
 }

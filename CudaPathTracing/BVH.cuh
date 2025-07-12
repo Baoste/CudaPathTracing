@@ -20,7 +20,7 @@ __device__ inline unsigned int expandBits(unsigned int v)
 
 // Calculates a 30-bit Morton code for the
 // given 3D point located within the unit cube [0,1].
-__device__ inline unsigned int morton3D(double3 v, const double3 sceneMin, const double3 sceneMax)
+__device__ inline unsigned int morton3D(double3 v, const double3 sceneMin, const double3 sceneMax, int index)
 {
     // normalize
     double3 normalized;
@@ -36,7 +36,8 @@ __device__ inline unsigned int morton3D(double3 v, const double3 sceneMin, const
     unsigned int yy = expandBits((unsigned int)y);
     unsigned int zz = expandBits((unsigned int)z);
     // printf("Morton code for (%f, %f, %f) = %u\n", normalized.x, normalized.y, normalized.z, xx * 4 + yy * 2 + zz);
-    return xx * 4 + yy * 2 + zz;
+    unsigned int morton = xx * 4 + yy * 2 + zz;
+    return (morton << 2) | (index & 0x3);
 }
 
 struct Node
@@ -133,7 +134,7 @@ __device__ inline int2 determineRange(const unsigned int* mortonCodes, int numOb
     int deltaPrev = delta(mortonCodes, numObjects, idx, idx - 1);        
 
     // 决定搜索方向
-    d = (deltaNext - deltaPrev) > 0 ? 1 : -1;
+    d = (deltaNext > deltaPrev) ? 1 : -1;
 
     // δmin 是最小公共前缀
     int deltaMin = delta(mortonCodes, numObjects, idx, idx - d);
@@ -144,7 +145,6 @@ __device__ inline int2 determineRange(const unsigned int* mortonCodes, int numOb
     {
         lMax *= 2;
     }
-
     // 二分查找精确范围端点 j
     int l = 0;
     for (int t = lMax / 2; t >= 1; t /= 2)
@@ -158,8 +158,13 @@ __device__ inline int2 determineRange(const unsigned int* mortonCodes, int numOb
     int j = idx + l * d;
 
     // ! IMPORTANT, avoid that same morton codes lead to first == last
-    if (l == 0)
-        j = idx + d;
+    //if (l == 0)
+    //{
+    //    while (delta(mortonCodes, numObjects, idx, idx + l * d) == deltaMin)
+    //        l++;
+    //    l--;
+    //    j = idx + l * d;
+    //}
 
     // 返回区间 [first, last]
     int first = mMin(idx, j);
@@ -207,6 +212,7 @@ __device__ inline void generateHierarchy(Hittable* d_objs, Node* leafNodes, Node
 
         // Determine where to split the range.
         int split = findSplit(sortedMortonCodes, first, last);
+        //printf("%d: [%d, %d], %d\n", idx, first, last, split);
 
         // Select childA.
         Node* childA;
