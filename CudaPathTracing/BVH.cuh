@@ -20,7 +20,7 @@ __device__ inline unsigned int expandBits(unsigned int v)
 
 // Calculates a 30-bit Morton code for the
 // given 3D point located within the unit cube [0,1].
-__device__ inline unsigned int morton3D(double3 v, const double3 sceneMin, const double3 sceneMax, int index)
+__device__ inline uint64_t morton3D(double3 v, const double3 sceneMin, const double3 sceneMax, int index)
 {
     // normalize
     double3 normalized;
@@ -36,8 +36,8 @@ __device__ inline unsigned int morton3D(double3 v, const double3 sceneMin, const
     unsigned int yy = expandBits((unsigned int)y);
     unsigned int zz = expandBits((unsigned int)z);
     // printf("Morton code for (%f, %f, %f) = %u\n", normalized.x, normalized.y, normalized.z, xx * 4 + yy * 2 + zz);
-    unsigned int morton = xx * 4 + yy * 2 + zz;
-    return (morton << 2) | (index & 0x3);
+    uint64_t morton = xx * 4 + yy * 2 + zz;
+    return (morton << 32) | index;
 }
 
 struct Node
@@ -78,12 +78,12 @@ __device__ inline bool checkOverlap(const Ray& ray, const AABB& aabb, double t_m
         checkSlab(orig.z, invD.z, aabb.min.z, aabb.max.z, t_min, t_max);
 }
 
-__device__ inline int findSplit(unsigned int* sortedMortonCodes, int first, int last)
+__device__ inline int findSplit(uint64_t* sortedMortonCodes, int first, int last)
 {
     // Identical Morton codes => split the range in the middle.
 
-    unsigned int firstCode = sortedMortonCodes[first];
-    unsigned int lastCode = sortedMortonCodes[last];
+    uint64_t firstCode = sortedMortonCodes[first];
+    uint64_t lastCode = sortedMortonCodes[last];
 
     if (firstCode == lastCode)
         return (first + last) >> 1;
@@ -91,7 +91,7 @@ __device__ inline int findSplit(unsigned int* sortedMortonCodes, int first, int 
     // Calculate the number of highest bits that are the same
     // for all objects, using the count-leading-zeros intrinsic.
 
-    int commonPrefix = __clz(firstCode ^ lastCode);
+    int commonPrefix = __clzll(firstCode ^ lastCode);
 
     // Use binary search to find where the next bit differs.
     // Specifically, we are looking for the highest object that
@@ -107,8 +107,8 @@ __device__ inline int findSplit(unsigned int* sortedMortonCodes, int first, int 
 
         if (newSplit < last)
         {
-            unsigned int splitCode = sortedMortonCodes[newSplit];
-            int splitPrefix = __clz(firstCode ^ splitCode);
+            uint64_t splitCode = sortedMortonCodes[newSplit];
+            int splitPrefix = __clzll(firstCode ^ splitCode);
             if (splitPrefix > commonPrefix)
                 split = newSplit; // accept proposal
         }
@@ -117,17 +117,17 @@ __device__ inline int findSplit(unsigned int* sortedMortonCodes, int first, int 
     return split;
 }
 
-__device__ inline int delta(const unsigned int* mortonCodes, int numObjects, int i, int j)
+__device__ inline int delta(const uint64_t* mortonCodes, int numObjects, int i, int j)
 {
     if (j < 0 || j >= numObjects)
         return -1; // 越界定义为最小公共前缀
-    unsigned int codeA = mortonCodes[i];
-    unsigned int codeB = mortonCodes[j];
-    if (codeA == codeB) return 32; // 所有位都一样
-    return __clz(codeA ^ codeB);   // 返回不同前的公共前缀长度
+    uint64_t codeA = mortonCodes[i];
+    uint64_t codeB = mortonCodes[j];
+    if (codeA == codeB) return 64; // 所有位都一样
+    return __clzll(codeA ^ codeB);   // 返回不同前的公共前缀长度
 }
 
-__device__ inline int2 determineRange(const unsigned int* mortonCodes, int numObjects, int idx)
+__device__ inline int2 determineRange(const uint64_t* mortonCodes, int numObjects, int idx)
 {
     int d = 0;
     int deltaNext = delta(mortonCodes, numObjects, idx, idx + 1);
@@ -157,7 +157,6 @@ __device__ inline int2 determineRange(const unsigned int* mortonCodes, int numOb
 
     int j = idx + l * d;
 
-    // ! IMPORTANT, avoid that same morton codes lead to first == last
     //if (l == 0)
     //{
     //    while (delta(mortonCodes, numObjects, idx, idx + l * d) == deltaMin)
@@ -172,7 +171,7 @@ __device__ inline int2 determineRange(const unsigned int* mortonCodes, int numOb
     return int2{ first, last };
 }
 
-__device__ inline void generateHierarchy(Hittable* d_objs, Node* leafNodes, Node* internalNodes, unsigned int* sortedMortonCodes, unsigned int* sortedObjectIDs, int num)
+__device__ inline void generateHierarchy(Hittable* d_objs, Node* leafNodes, Node* internalNodes, uint64_t* sortedMortonCodes, unsigned int* sortedObjectIDs, int num)
 {
     // Construct leaf nodes.
     // Note: This step can be avoided by storing

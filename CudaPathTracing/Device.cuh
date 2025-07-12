@@ -128,7 +128,7 @@ __global__ inline void updateClothToDevice(Hittable* d_objs, unsigned int* d_clo
     }
 }
 
-__global__ inline void generateMortonCodes(Hittable* d_objs, unsigned int* d_mortons, unsigned int* d_objsIdx, const int size, const double3 sceneMin, const double3 sceneMax)
+__global__ inline void generateMortonCodes(Hittable* d_objs, uint64_t* d_mortons, unsigned int* d_objsIdx, const int size, const double3 sceneMin, const double3 sceneMax)
 {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i < size)
@@ -138,7 +138,7 @@ __global__ inline void generateMortonCodes(Hittable* d_objs, unsigned int* d_mor
     }
 }
 
-__global__ inline void generateBVH(Hittable* d_objs, Node* leafNodes, Node* internalNodes, unsigned int* d_mortons, unsigned int* d_objsIdx, const int size)
+__global__ inline void generateBVH(Hittable* d_objs, Node* leafNodes, Node* internalNodes, uint64_t* d_mortons, unsigned int* d_objsIdx, const int size)
 {
     generateHierarchy(d_objs, leafNodes, internalNodes, d_mortons, d_objsIdx, size);
 }
@@ -160,7 +160,7 @@ public:
         cudaMalloc((void**)&d_clothPtr, sizeof(unsigned int));
         registerDevice << <1, 1 >> > (d_objPtr, d_lightPtr);
     }
-    void buildBVH(Hittable* d_objs, Node* leafNodes, Node* internalNodes, unsigned int* d_mortons, unsigned int* d_objsIdx, const int size, double3 minBoundary, double3 maxBoundary)
+    void buildBVH(Hittable* d_objs, Node* leafNodes, Node* internalNodes, uint64_t* d_mortons, unsigned int* d_objsIdx, const int size, double3 minBoundary, double3 maxBoundary)
     {
         int threadsPerBlock = 256;
         int blocks = (size + threadsPerBlock - 1) / threadsPerBlock;
@@ -178,9 +178,11 @@ public:
         generateMortonCodes << <blocks, threadsPerBlock >> > (d_objs, d_mortons, d_objsIdx, size, sceneMin, sceneMax);
         checkCudaErrors(cudaDeviceSynchronize());
         // sort
-        thrust::device_ptr<unsigned int> d_keys(d_mortons);
+        thrust::device_ptr<uint64_t> d_keys(d_mortons);
         thrust::device_ptr<unsigned int> d_values(d_objsIdx);
         thrust::sort_by_key(d_keys, d_keys + size, d_values);
+
+
 
         generateBVH << <1, 1 >> > (d_objs, leafNodes, internalNodes, d_mortons, d_objsIdx, size);
         checkCudaErrors(cudaDeviceSynchronize());

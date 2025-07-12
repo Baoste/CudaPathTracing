@@ -39,10 +39,10 @@ public:
     double3 maxBoundary;
 
 private:
-    unsigned int* d_mortons;
+    uint64_t* d_mortons;
     unsigned int* d_objIdx;
 
-    unsigned int* d_mortonsExceptCloth;
+    uint64_t* d_mortonsExceptCloth;
     unsigned int* d_objIdxExceptCloth;
     double* d_X, * d_V, * d_F, * d_M, * d_L;
     int* d_edgeIdx, * d_triIdx;
@@ -91,7 +91,7 @@ public:
         // cloth
         if (parser.hasCloth)
         {
-            cudaMalloc((void**)&d_mortonsExceptCloth, allCount * sizeof(unsigned int));
+            cudaMalloc((void**)&d_mortonsExceptCloth, allCount * sizeof(uint64_t));
             cudaMalloc((void**)&d_objIdxExceptCloth, allCount * sizeof(unsigned int));
             cudaMalloc((void**)&leafNodesExceptCloth, allCount * sizeof(Node));
             cudaMalloc((void**)&internalNodesExceptCloth, (allCount - 1) * sizeof(Node));
@@ -100,7 +100,7 @@ public:
 
             // allocate cloth triangles to device
             addCloth();
-            cudaMalloc((void**)&d_mortons, allCount * sizeof(unsigned int));
+            cudaMalloc((void**)&d_mortons, allCount * sizeof(uint64_t));
             cudaMalloc((void**)&d_objIdx, allCount * sizeof(unsigned int));
             cudaMalloc((void**)&internalNodes, (allCount - 1) * sizeof(Node));
             cudaMalloc((void**)&leafNodes, allCount * sizeof(Node));
@@ -115,7 +115,7 @@ public:
         }
         else
         {
-            cudaMalloc((void**)&d_mortons, allCount * sizeof(unsigned int));
+            cudaMalloc((void**)&d_mortons, allCount * sizeof(uint64_t));
             cudaMalloc((void**)&d_objIdx, allCount * sizeof(unsigned int));
             cudaMalloc((void**)&internalNodes, (allCount - 1) * sizeof(Node));
             cudaMalloc((void**)&leafNodes, allCount * sizeof(Node));
