@@ -171,80 +171,78 @@ __device__ inline int2 determineRange(const uint64_t* mortonCodes, int numObject
     return int2{ first, last };
 }
 
-__device__ inline void generateHierarchy(Hittable* d_objs, Node* leafNodes, Node* internalNodes, uint64_t* sortedMortonCodes, unsigned int* sortedObjectIDs, int num)
+__device__ inline void generateHierarchy(Hittable* d_objs, Node* leafNodes, Node* internalNodes, uint64_t* sortedMortonCodes, unsigned int* sortedObjectIDs, int num, int idx)
 {
     // Construct leaf nodes.
     // Note: This step can be avoided by storing
     // the tree in a slightly different way.
-    for (int idx = 0; idx < num; idx++)
-    {
-        leafNodes[idx].isLeaf = true;
-        leafNodes[idx].objectID = sortedObjectIDs[idx];
-        leafNodes[idx].aabb = d_objs[sortedObjectIDs[idx]].aabb;
-        leafNodes[idx].childA = NULL;
-        leafNodes[idx].childB = NULL;
-        //printf("Leaf Node %d: AABB = [%f, %f, %f] - [%f, %f, %f] : %d\n",
-        //    leafNodes[idx].objectID,
-        //    leafNodes[idx].aabb.min.x, leafNodes[idx].aabb.min.y, leafNodes[idx].aabb.min.z,
-        //    leafNodes[idx].aabb.max.x, leafNodes[idx].aabb.max.y, leafNodes[idx].aabb.max.z,
-        //    sortedMortonCodes[idx]
-        //);
-    }
 
-    for (int idx = 0; idx < num - 1; idx++)
-    {
-        internalNodes[idx].isLeaf = false;
-        internalNodes[idx].objectID = idx;
-        internalNodes[idx].childA = NULL;
-        internalNodes[idx].childB = NULL;
-        internalNodes[idx].visited = 0;
-    }
+    leafNodes[idx].isLeaf = true;
+    leafNodes[idx].objectID = sortedObjectIDs[idx];
+    leafNodes[idx].aabb = d_objs[sortedObjectIDs[idx]].aabb;
+    leafNodes[idx].childA = NULL;
+    leafNodes[idx].childB = NULL;
+    //printf("Leaf Node %d: AABB = [%f, %f, %f] - [%f, %f, %f] : %d\n",
+    //    leafNodes[idx].objectID,
+    //    leafNodes[idx].aabb.min.x, leafNodes[idx].aabb.min.y, leafNodes[idx].aabb.min.z,
+    //    leafNodes[idx].aabb.max.x, leafNodes[idx].aabb.max.y, leafNodes[idx].aabb.max.z,
+    //    sortedMortonCodes[idx]
+    //);
+
+    if (idx >= num - 1)
+        return;
+
+    internalNodes[idx].isLeaf = false;
+    internalNodes[idx].objectID = idx;
+    internalNodes[idx].childA = NULL;
+    internalNodes[idx].childB = NULL;
+    internalNodes[idx].visited = 0;
 
     // Construct internal nodes.
-    for (int idx = 0; idx < num - 1; idx++)
-    {
-        // Find out which range of objects the node corresponds to.
-        // (This is where the magic happens!)
-        int2 range = determineRange(sortedMortonCodes, num, idx);
-        int first = range.x;
-        int last = range.y;
+    // 
+    // Find out which range of objects the node corresponds to.
+    // (This is where the magic happens!)
+    int2 range = determineRange(sortedMortonCodes, num, idx);
+    int first = range.x;
+    int last = range.y;
 
-        // Determine where to split the range.
-        int split = findSplit(sortedMortonCodes, first, last);
-        //printf("%d: [%d, %d], %d\n", idx, first, last, split);
+    // Determine where to split the range.
+    int split = findSplit(sortedMortonCodes, first, last);
+    //printf("%d: [%d, %d], %d\n", idx, first, last, split);
 
-        // Select childA.
-        Node* childA;
-        if (split == first)
-            childA = &leafNodes[split];
-        else
-            childA = &internalNodes[split];
+    // Select childA.
+    Node* childA;
+    if (split == first)
+        childA = &leafNodes[split];
+    else
+        childA = &internalNodes[split];
 
-        // Select childB.
-        Node* childB;
-        if (split + 1 == last)
-            childB = &leafNodes[split + 1];
-        else
-            childB = &internalNodes[split + 1];
+    // Select childB.
+    Node* childB;
+    if (split + 1 == last)
+        childB = &leafNodes[split + 1];
+    else
+        childB = &internalNodes[split + 1];
 
-        // Record parent-child relationships.
-        internalNodes[idx].childA = childA;
-        internalNodes[idx].childB = childB;
-        childA->visited = 1;
-        childB->visited = 1;
+    // Record parent-child relationships.
+    internalNodes[idx].childA = childA;
+    internalNodes[idx].childB = childB;
+    childA->visited = 1;
+    childB->visited = 1;
 
-        //printf("Node %d / %d: AABB = %d(%d) - %d(%d)\n",
-        //    internalNodes[idx].objectID,
-        //    num - 1,
-        //    internalNodes[idx].childA->objectID,
-        //    internalNodes[idx].childA->isLeaf ? 1 : 0,
-        //    internalNodes[idx].childB->objectID,
-        //    internalNodes[idx].childB->isLeaf ? 1 : 0
-        //);
-    }
+    //printf("Node %d / %d: AABB = %d(%d) - %d(%d)\n",
+    //    internalNodes[idx].objectID,
+    //    num - 1,
+    //    internalNodes[idx].childA->objectID,
+    //    internalNodes[idx].childA->isLeaf ? 1 : 0,
+    //    internalNodes[idx].childB->objectID,
+    //    internalNodes[idx].childB->isLeaf ? 1 : 0
+    //);
+}
 
+__global__ inline void constructAABB(Node* internalNodes)
+{
     // construct AABB
-
     Node* stack[512];
     Node** stackPtr = stack;
     Node* cur = internalNodes;
@@ -281,7 +279,6 @@ __device__ inline void generateHierarchy(Hittable* d_objs, Node* leafNodes, Node
         //printf("max = %d\n", p_max);
     }
     printf("max = %d\n", p_max);
-
 }
 
 __device__ inline int traverseIterative(Node* internalNodes, Hittable* objs, const Ray& ray, HitRecord& record)

@@ -140,7 +140,10 @@ __global__ inline void generateMortonCodes(Hittable* d_objs, uint64_t* d_mortons
 
 __global__ inline void generateBVH(Hittable* d_objs, Node* leafNodes, Node* internalNodes, uint64_t* d_mortons, unsigned int* d_objsIdx, const int size)
 {
-    generateHierarchy(d_objs, leafNodes, internalNodes, d_mortons, d_objsIdx, size);
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= size) return;
+
+    generateHierarchy(d_objs, leafNodes, internalNodes, d_mortons, d_objsIdx, size, idx);
 }
 
 class Device
@@ -182,9 +185,9 @@ public:
         thrust::device_ptr<unsigned int> d_values(d_objsIdx);
         thrust::sort_by_key(d_keys, d_keys + size, d_values);
 
-
-
-        generateBVH << <1, 1 >> > (d_objs, leafNodes, internalNodes, d_mortons, d_objsIdx, size);
+        generateBVH << <blocks, threadsPerBlock >> > (d_objs, leafNodes, internalNodes, d_mortons, d_objsIdx, size);
+        checkCudaErrors(cudaDeviceSynchronize());
+        constructAABB << <1, 1 >> > (internalNodes);
         checkCudaErrors(cudaDeviceSynchronize());
     }
 };
