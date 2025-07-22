@@ -209,8 +209,8 @@ __global__ inline void PhysicsUpdate(double dt, double* X, double* V, double* F,
     //collisionDetect(X, V, partIndex, internalNodes, d_b);
     double friction = 0.3;
     double restitution = 0.0; // ·´µ¯Ç¿¶È
-    double r = 1.2;
-    double3 center = make_double3(2.0, 1.0, 2.0);
+    double r = 1.1;
+    double3 center = make_double3(0.0, 1.0, 0.0);
     double3 p = make_double3(X[partIndex + 0], X[partIndex + 1], X[partIndex + 2]);
     double3 offset = p - center;
     double dist2 = SquaredLength(offset);

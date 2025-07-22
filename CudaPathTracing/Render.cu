@@ -51,6 +51,7 @@ __global__ void render(uchar4* devPtr, double3* pic, double3* picPrevious, doubl
         // init G-buffer
         gBuffer[offset] = make_double4(0.0, 0.0, 0.0, INF);
         gBufferPosition[offset] = make_double3(INF, INF, INF);
+        MaterialType lastMaterialType = MaterialType::M_NONE;
 
         while (true) 
         {
@@ -66,10 +67,12 @@ __global__ void render(uchar4* devPtr, double3* pic, double3* picPrevious, doubl
             // if hit light
             if (record.material->type == MaterialType::M_LIGHT)
             {
-                radiance += throughput * record.hitColor;
+                if (lastMaterialType != MaterialType::M_OPAQUE)
+                    radiance += throughput * record.hitColor;
                 break;
             }
 
+            lastMaterialType = record.material->type;
             // contribution from the light source
             double3 direction;
             for (int k = 0; k < lightsCount; k++)

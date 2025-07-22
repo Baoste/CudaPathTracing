@@ -202,14 +202,14 @@ private:
     __host__ __device__ void brdf(const Ray& ray, const double3 normal, double3& direction, double& pdf, double r1, double r2)
     {
         double3 w = normal;
-        double3 a = (fabs(w.x) > 0.99999) ? make_double3(0.0, 1.0, 0.0) : make_double3(1.0, 0.0, 0.0);
-        double3 u = Unit(Cross(w, a));
+        double3 a = (fabs(w.z) > 0.99999) ? make_double3(1.0, 0.0, 0.0) : make_double3(0.0, 0.0, 1.0);
+        double3 u = Unit(Cross(a, w));
         double3 v = Cross(w, u);
 
         double3 unitRayDirection = -Unit(ray.direction);
         double3 W_o = make_double3(Dot(unitRayDirection, u), Dot(unitRayDirection, v), Dot(unitRayDirection, w));
         double3 W_h = Unit(make_double3(alphaX * W_o.x, alphaY * W_o.y, W_o.z));
-        double3 T1 = (W_h.z < 0.99999) ? Unit(Cross(make_double3(0, 0, 1), W_h)) : make_double3(1, 0, 0);
+        double3 T1 = (W_h.z < 0.99999) ? Unit(Cross(make_double3(0, 0, 1), W_h)) : Unit(Cross(make_double3(1, 0, 0), W_h));
         double3 T2 = Cross(W_h, T1);
         double r = sqrt(r1);
         double theta = 2 * PI * r2;
@@ -232,17 +232,10 @@ private:
         }
 
         double3 H = Unit((direction + unitRayDirection));
-        pdf = GeometrySmith(normal, unitRayDirection) / W_o.z * DistributionGGX(normal, H) * Dot(W_o, W_m) / (4 * Dot(W_o, W_m));
+        pdf = GeometrySmith(normal, unitRayDirection) / W_o.z * DistributionGGX(normal, H) / 4.0;
     }
 
 private:
-    __host__ __device__ static double reflectance(const double& cos, const double& refIdx)
-    {
-        double r0 = (1 - refIdx) / (1 + refIdx);
-        r0 *= r0;
-        return r0 + (1 - r0) * pow((1 - cos), 5);
-    }
-
     __host__ __device__ double3 worldToLocal(double3 N, double3 W)
     {
         double3 zAxis = N;

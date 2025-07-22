@@ -50,7 +50,7 @@ private:
     Cloth cloth;
 
 public:
-    Scene() : cloth(3.0, make_double3(2.0, 2.3, 2.0))
+    Scene() : cloth(3.0, make_double3(0.0, 2.3, 0.0))
     {
         allCount = 0;
         lightsCount = 0;

@@ -88,7 +88,7 @@ __global__ inline void allocateClothToDevice(Hittable* d_objs, unsigned int* d_o
                 make_double3(d_x[d_idx[quad_id + 1] * 3 + 0], d_x[d_idx[quad_id + 1] * 3 + 1], d_x[d_idx[quad_id + 1] * 3 + 2]),
                 make_double3(d_x[d_idx[quad_id + 2] * 3 + 0], d_x[d_idx[quad_id + 2] * 3 + 1], d_x[d_idx[quad_id + 2] * 3 + 2]),
                 make_double3(0.5, 0.2, 0.1),
-                0.5, 0.5
+                0.5, 0.01
             ));
             (*d_objPtr)++;
             new (&d_objs[2 * (i * size + j) + 1 + *d_clothPtr]) Hittable(Triangle(
@@ -96,7 +96,7 @@ __global__ inline void allocateClothToDevice(Hittable* d_objs, unsigned int* d_o
                 make_double3(d_x[d_idx[quad_id + 4] * 3 + 0], d_x[d_idx[quad_id + 4] * 3 + 1], d_x[d_idx[quad_id + 4] * 3 + 2]),
                 make_double3(d_x[d_idx[quad_id + 5] * 3 + 0], d_x[d_idx[quad_id + 5] * 3 + 1], d_x[d_idx[quad_id + 5] * 3 + 2]),
                 make_double3(0.5, 0.2, 0.1),
-                0.5, 0.5
+                0.5, 0.01
             ));
             (*d_objPtr)++;
         }
@@ -176,7 +176,7 @@ public:
             sceneMin = make_double3(-20.0, -20.0, -20.0);
             sceneMax = make_double3(20.0, 20.0, 20.0);
         }
-        printf("Scene Boundary: (%f, %f, %f) - (%f, %f, %f)\n", sceneMin.x, sceneMin.y, sceneMin.z, sceneMax.x, sceneMax.y, sceneMax.z);
+        //printf("Scene Boundary: (%f, %f, %f) - (%f, %f, %f)\n", sceneMin.x, sceneMin.y, sceneMin.z, sceneMax.x, sceneMax.y, sceneMax.z);
 
         generateMortonCodes << <blocks, threadsPerBlock >> > (d_objs, d_mortons, d_objsIdx, size, sceneMin, sceneMax);
         checkCudaErrors(cudaDeviceSynchronize());

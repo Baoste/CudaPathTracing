@@ -278,10 +278,10 @@ __global__ inline void constructAABB(Node* internalNodes)
         }
         //printf("max = %d\n", p_max);
     }
-    printf("max = %d\n", p_max);
+    //printf("max = %d\n", p_max);
 }
 
-__device__ inline int traverseIterative(Node* internalNodes, Hittable* objs, const Ray& ray, HitRecord& record)
+__device__ inline int traverseIterative(Node* internalNodes, Hittable* objs, const Ray& ray, HitRecord& record, double tMax = INF, double tMin = 0.001)
 {
     // Allocate traversal stack from thread-local memory,
     // and push NULL to indicate that there are no postponed nodes.
@@ -293,26 +293,24 @@ __device__ inline int traverseIterative(Node* internalNodes, Hittable* objs, con
 
     // Traverse nodes starting from the root.
     Node* node = internalNodes;
-    double t_min = 0.001;
-    double t_max = INF;
     HitRecord tempRecord;
     do
     {
         // Check each child node for overlap.
         Node* childL = node->childA;
         Node* childR = node->childB;
-        bool overlapL = checkOverlap(ray, childL->aabb, t_min, t_max);
-        bool overlapR = checkOverlap(ray, childR->aabb, t_min, t_max);
+        bool overlapL = checkOverlap(ray, childL->aabb, tMin, tMax);
+        bool overlapR = checkOverlap(ray, childR->aabb, tMin, tMax);
 
         // Query overlaps a leaf node => report collision.
         if (overlapL && childL->isLeaf)
-            if (objs[childL->objectID].hit(ray, tempRecord, 0.001, hitId >= 0 ? record.t : INF))
+            if (objs[childL->objectID].hit(ray, tempRecord, 0.001, hitId >= 0 ? record.t : tMax))
             { 
                 hitId = childL->objectID;
                 record = tempRecord;
             }
         if (overlapR && childR->isLeaf)
-            if (objs[childR->objectID].hit(ray, tempRecord, 0.001, hitId >= 0 ? record.t : INF))
+            if (objs[childR->objectID].hit(ray, tempRecord, 0.001, hitId >= 0 ? record.t : tMax))
             {
                 hitId = childR->objectID;
                 record = tempRecord;
