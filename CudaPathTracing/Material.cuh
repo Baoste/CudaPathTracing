@@ -190,7 +190,6 @@ public:
             // BRDF sampling
             brdf(ray, normal, direction, pdf, r1, r2);
         }
-
     }
 
     //double3 emitted() const

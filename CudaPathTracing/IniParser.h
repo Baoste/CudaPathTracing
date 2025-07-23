@@ -19,6 +19,7 @@ struct CameraInfo
     double3 lookFrom;
     double3 lookAt;
     double vFov;
+    std::string skyBox;
     CameraInfo() : background{ 0.0, 0.0, 0.0 }, width(0.0), aspectRatio(16.0 / 9.0), lookFrom{ 0.0, 0.0, 1.0 }, lookAt{ 0.0, 0.0, 0.0 }, vFov(90.0) {}
 };
 

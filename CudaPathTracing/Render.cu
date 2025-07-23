@@ -48,31 +48,116 @@ __global__ void render(uchar4* devPtr, double3* pic, double3* picPrevious, doubl
         double3 radiance = make_double3(0.0, 0.0, 0.0);    // final result
         int depth = 0;
         
+        bool hasHit = false;
+        
         // init G-buffer
         gBuffer[offset] = make_double4(0.0, 0.0, 0.0, INF);
         gBufferPosition[offset] = make_double3(INF, INF, INF);
-        MaterialType lastMaterialType = MaterialType::M_NONE;
+        bool hasSampleLight = false;
 
         while (true) 
         {
             HitRecord record;
             HitRecord lightRecord;
+            int hitId = traverseIterative(internalNodes, objs, ray, record);
+
+            if (hitId >= 0 && record.material->type == MaterialType::M_VOLUME)
+            {
+                double sigmaMaj = 25.0;
+                HitRecord volRecord;
+                ray = Ray(record.hitPos, ray.direction, 0.0);
+                int isHit = traverseIterative(internalNodes, objs, ray, volRecord);
+                if (isHit < 0)
+                    continue;
+                double dMax = volRecord.t;
+
+                //if (hasHit)
+                //{
+                //    double3 pos = record.hitPos + dMax * ray.direction;
+                //    ray = Ray(pos, ray.direction, 0.0);
+                //    continue;
+                //}
+
+                double t = -log(1.0 - curand_uniform_double(&state)) / sigmaMaj;
+                double3 pos = record.hitPos + t * ray.direction;
+                ray = Ray(pos, ray.direction, 0.0);
+                
+                while (t < dMax)
+                {
+                    double P_RR = 0.8;
+                    if (curand_uniform_double(&state) > P_RR) break;
+
+                    throughput *= exp(-t * sigmaMaj) / P_RR;
+                    //radiance += (1.0 - exp(-t * sigmaMaj)) * make_double3(0.2, 0.2, 0.2);
+
+                    //double g = -0.8;  // 控制散射性（向前）
+                    //// 入射方向
+                    //double3 wi = -ray.direction; // 注意方向朝内
+                    //// 采样 cosθ
+                    //double u1 = curand_uniform_double(&state);
+                    //// sampleHG(g, u1);
+                    //double cosTheta = 0.0;
+                    //if (fabs(g) < 1e-3)
+                    //    cosTheta = 1.0 - 2.0 * u1; // 各向同性时退化为 cosTheta ∈ [-1, 1]
+                    //else
+                    //{
+                    //    double sqr = (1.0 - g * g) / (1.0 - g + 2.0 * g * u1);
+                    //    cosTheta = (1.0 + g * g - sqr * sqr) / (2.0 * g);
+                    //}
+                    //double sinTheta = sqrt(fmax(0.0, 1.0 - cosTheta * cosTheta));
+                    //// 采样 φ
+                    //double u2 = curand_uniform_double(&state);
+                    //double phi = 2.0 * PI * u2;
+                    //// 构造局部方向
+                    //double3 w = wi;
+                    //double3 a = (fabs(w.x) > 0.9) ? make_double3(0.0, 1.0, 0.0) : make_double3(1.0, 0.0, 0.0);
+                    //double3 u = Unit(Cross(a, w));
+                    //double3 v = Cross(w, u);
+
+                    //double3 localDir = sinTheta * cos(phi) * u + sinTheta * sin(phi) * v + cosTheta * w;
+                    //double3 direction = Unit(localDir);
+
+                    double z = 1.0 - 2.0 * curand_uniform_double(&state);
+                    double r = sqrt(1.0 - z * z);
+                    double phi = 2.0 * PI * curand_uniform_double(&state);
+                    double3 direction = Unit(make_double3(r * cos(phi), r * sin(phi), z));
+                    ray = Ray(pos, direction, 0.0);
+                    pos = record.hitPos + t * direction;
+                    isHit = traverseIterative(internalNodes, objs, ray, volRecord);
+                    dMax = volRecord.t;
+                    t = -log(1.0 - curand_uniform_double(&state)) / sigmaMaj;
+                    if (t > dMax || isHit < 0)
+                        break;
+                }
+
+                hasHit = true;
+                continue;
+            }
 
             // if no hit, break
-            if (traverseIterative(internalNodes, objs, ray, record) < 0)
+            if (hitId < 0)
             {
-                radiance += throughput * camera->background;
+                radiance += throughput * camera->getSkyBox(ray.direction);
                 break;
             }
             // if hit light
             if (record.material->type == MaterialType::M_LIGHT)
             {
-                if (lastMaterialType != MaterialType::M_OPAQUE)
+                if (!hasSampleLight)
                     radiance += throughput * record.hitColor;
                 break;
             }
 
-            lastMaterialType = record.material->type;
+            // G-buffer
+            if (depth == 0)
+            {
+                gBuffer[offset].x = record.normal.x;
+                gBuffer[offset].y = record.normal.y;
+                gBuffer[offset].z = record.normal.z;
+                gBuffer[offset].w = Length(camera->lookFrom - record.hitPos);
+                gBufferPosition[offset] = record.hitPos;
+            }
+
             // contribution from the light source
             double3 direction;
             for (int k = 0; k < lightsCount; k++)
@@ -97,6 +182,7 @@ __global__ void render(uchar4* devPtr, double3* pic, double3* picPrevious, doubl
                 {
                     double3 colorLight = lightRecord.hitColor * record.getFr(ray, direction) * Dot(direction, record.normal) * Dot(-direction, light.normal) / SquaredLength(lightPos - record.hitPos) / pdfLight;
                     radiance += throughput * colorLight;
+                    hasSampleLight = true;
                 }
             }
 
@@ -115,16 +201,6 @@ __global__ void render(uchar4* devPtr, double3* pic, double3* picPrevious, doubl
                 // russian roulette
                 P_RR = 0.7;
                 if (curand_uniform_double(&state) > P_RR) break;
-            }
-
-            // G-buffer
-            if (depth == 1)
-            {
-                gBuffer[offset].x = record.normal.x;
-                gBuffer[offset].y = record.normal.y;
-                gBuffer[offset].z = record.normal.z;
-                gBuffer[offset].w = Length(camera->lookFrom - record.hitPos);
-                gBufferPosition[offset] = record.hitPos;
             }
 
             // randomly choose ONE direction w_i

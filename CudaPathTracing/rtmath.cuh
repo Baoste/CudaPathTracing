@@ -12,7 +12,7 @@
 #define mMax(a, b) ((a) > (b) ? (a) : (b))
 #define mSwap(a, b) { double temp = a; a = b; b = temp; }
 
-enum MaterialType { M_NONE, M_LIGHT, M_OPAQUE, M_SPECULAR_DIELECTRIC, M_ROUGH_DIELECTRIC };
+enum MaterialType { M_NONE, M_LIGHT, M_OPAQUE, M_SPECULAR_DIELECTRIC, M_ROUGH_DIELECTRIC, M_VOLUME };
 
 __host__ __device__ inline double3 operator+(const double3& v1, const double3& v2) 
 {

@@ -18,7 +18,7 @@ inline void check_cuda(cudaError_t result, char const* const func, const char* c
     }
 }
 
-const int MAXTRIANGLE = 1000000;
+const int MAXTRIANGLE = 2000000;
 
 __global__ inline void registerDevice(unsigned int* d_objPtr, unsigned int* d_lightPtr)
 {

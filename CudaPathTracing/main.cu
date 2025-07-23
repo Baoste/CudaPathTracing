@@ -33,7 +33,7 @@ int main()
     Scene scene;
     scene.init(parser);
 
-    Camera camera(nx, parser.camera.aspectRatio, parser.camera.background, parser.camera.lookFrom, parser.camera.lookAt, parser.camera.vFov);
+    Camera camera(nx, parser.camera.aspectRatio, parser.camera.background, parser.camera.lookFrom, parser.camera.lookAt, parser.camera.vFov, parser.camera.skyBox);
     checkCudaErrors(cudaMemcpy(scene.d_camera, &camera, sizeof(Camera), cudaMemcpyHostToDevice));
 
 

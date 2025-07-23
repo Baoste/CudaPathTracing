@@ -37,6 +37,7 @@ void IniParser::Parse(const std::string& filename)
         if (section == "Camera") 
         {
             if (key == "background") camera.background = parseColor(value);
+            else if (key == "skyBox") camera.skyBox = value;
             else if (key == "width") camera.width = std::stoi(value);
             else if (key == "aspectRatio") camera.aspectRatio = std::stod(value);
             else if (key == "lookFrom") camera.lookFrom = parseVec3(value);
@@ -122,5 +123,6 @@ MaterialType IniParser::ParseMaterialType(const std::string& str)
     if (str == "Opaque") return MaterialType::M_OPAQUE;
     if (str == "SpecularDielectric") return MaterialType::M_SPECULAR_DIELECTRIC;
     if (str == "RoughDielectric") return MaterialType::M_ROUGH_DIELECTRIC;
+    if (str == "Volume") return MaterialType::M_VOLUME;
     return MaterialType::M_OPAQUE;
 }

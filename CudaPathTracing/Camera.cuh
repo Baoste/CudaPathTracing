@@ -6,7 +6,7 @@
 class Camera
 {
 public:
-    Camera(int _width, double _aspectRatio, Color _background, double3 _lookFrom, double3 _lookAt, double _vFov);
+    Camera(int _width, double _aspectRatio, Color _background, double3 _lookFrom, double3 _lookAt, double _vFov, const std::string& skyBox);
 
     Color background;
     double aspectRatio;
@@ -27,6 +27,12 @@ public:
 
     double3 u, v, w;
 
+private:
+    unsigned char* d_image;
+    int imgWidth;
+    int imgHeight;
+    int imgChannels;
+
 public:
     __device__ inline Ray getRandomSampleRay(const int x, const int y, const double randx, const double randy) const 
     {
@@ -39,6 +45,21 @@ public:
     {
         double3 pixel = pixel_center + x * delta_h + y * delta_v;
         return Ray(lookFrom, pixel - lookFrom, 0.0);
+    }
+
+    __device__ inline double3 getSkyBox(const double3 direction) const
+    {
+        if (d_image == NULL)
+            return background;
+
+        double3 dir = Unit(direction);
+        double u = atan2(-dir.z, dir.x) / (2.0 * PI) + 0.5;
+        double v = 0.5 - asin(dir.y) / PI;
+
+        int x = mMin(mMax(int(u * imgWidth), 0), imgWidth - 1);
+        int y = mMin(mMax(int(v * imgHeight), 0), imgHeight - 1);
+        int idx = (y * imgWidth + x) * 3;
+        return make_double3(d_image[idx] / 255.0, d_image[idx + 1] / 255.0, d_image[idx + 2] / 255.0);
     }
 
     __host__ __device__ inline void move(double p, double t, double x)
