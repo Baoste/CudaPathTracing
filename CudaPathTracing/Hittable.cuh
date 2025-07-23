@@ -59,6 +59,7 @@ class Triangle
 public:
     double3 p0, p1, p2;
     double2 uv0, uv1, uv2;
+    double3 n0, n1, n2;
     double3 center;
     double3 normal;
     Material material;
@@ -69,8 +70,12 @@ public:
     __host__ __device__ Triangle(const double3 _p0, const double3 _p1, const double3 _p2, 
         const double3 color, double alphaX, double alphaY, MaterialType type = MaterialType::M_OPAQUE,
         const double2 _uv0 = make_double2(0.0, 0.0), const double2 _uv1 = make_double2(0.0, 0.0), const double2 _uv2 = make_double2(0.0, 0.0),
+        const double3 _n0 = make_double3(0.0, 0.0, 0.0), const double3 _n1 = make_double3(0.0, 0.0, 0.0), const double3 _n2 = make_double3(0.0, 0.0, 0.0),
         unsigned char* _texture = NULL, int _width = 0, int _height = 0, int _channels = 0)
-        : p0(_p0), p1(_p1), p2(_p2), uv0(_uv0), uv1(_uv1), uv2(_uv2), material(color, alphaX, alphaY, type),
+        : p0(_p0), p1(_p1), p2(_p2), uv0(_uv0), 
+          uv1(_uv1), uv2(_uv2), 
+          n0(_n0), n1(_n1), n2(_n2),
+          material(color, alphaX, alphaY, type),
           texture(_texture), width(_width), height(_height), channels(_channels)
     {
         center = (p0 + p1 + p2) / 3.0;
@@ -110,11 +115,25 @@ public:
         double vv = (1.0 - u - v) * uv0.y + u * uv1.y + v * uv2.y;
         record.sampleTexture(material.color, texture, width, height, uu, vv);
 
+        // set hit record
         record.hitPos = ray.at(t);
         record.t = t;
         record.material = &material;
-        double3 outwardNoraml = Unit(Cross(edge1, edge2));
-        record.setFaceNormal(ray, outwardNoraml);
+        if (n0.x < EPSILON && n0.y < EPSILON && n0.z < EPSILON &&
+            n1.x < EPSILON && n1.y < EPSILON && n1.z < EPSILON &&
+            n2.x < EPSILON && n2.y < EPSILON && n2.z < EPSILON)
+        {
+            // if normals are not provided, use face normal
+            double3 outwardNoraml = Unit(Cross(edge1, edge2));
+            record.setFaceNormal(ray, outwardNoraml);
+        }
+        else
+        {
+            // if normals are provided, interpolate them
+            double w = 1.0 - u - v;
+            double3 interpolatedNormal = Unit(w * n0 + u * n1 + v * n2);
+            record.setFaceNormal(ray, interpolatedNormal);
+        }
 
         return true;
     }

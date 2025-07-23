@@ -233,11 +233,14 @@ public:
 
         MeshTriangle* d_triangles;
         MeshUV* d_uvs;
+        MeshVn* d_vns;
         cudaMalloc((void**)&d_triangles, num * sizeof(MeshTriangle));
         cudaMalloc((void**)&d_uvs, num * sizeof(MeshUV));
+        cudaMalloc((void**)&d_vns, num * sizeof(MeshVn));
         cudaMemcpy(d_triangles, mesh.triangles.data(), num * sizeof(MeshTriangle), cudaMemcpyHostToDevice);
         cudaMemcpy(d_uvs, mesh.uvs.data(), num * sizeof(MeshUV), cudaMemcpyHostToDevice);
-        allocateMeshesOnDevice << < 1, 1 >> > (device.d_objs, device.d_objPtr, d_triangles, d_image, width, height, channels, d_uvs, color, alphaX, alphaY, type, num);
+        cudaMemcpy(d_vns, mesh.vns.data(), num * sizeof(MeshVn), cudaMemcpyHostToDevice);
+        allocateMeshesOnDevice << < 1, 1 >> > (device.d_objs, device.d_objPtr, d_triangles, d_image, width, height, channels, d_uvs, d_vns, color, alphaX, alphaY, type, num);
         checkCudaErrors(cudaDeviceSynchronize());
 
         cudaMemcpy(&afterPtr, device.d_objPtr, sizeof(unsigned int), cudaMemcpyDeviceToHost);

@@ -19,11 +19,19 @@ struct MeshUV
     double2 p2;
 };
 
+struct MeshVn
+{
+    double3 n0;
+    double3 n1;
+    double3 n2;
+};
+
 class Mesh
 {
 public:
     std::vector<MeshTriangle> triangles;
     std::vector<MeshUV> uvs;
+    std::vector<MeshVn> vns;
     Mesh() = default;
 
 public:
@@ -71,12 +79,14 @@ private:
         for (const auto& shape : shapes) 
         {
             size_t index_offset = 0;
-            for (size_t f = 0; f < shape.mesh.num_face_vertices.size(); f++) {
+            for (size_t f = 0; f < shape.mesh.num_face_vertices.size(); f++) 
+            {
                 size_t fv = shape.mesh.num_face_vertices[f];
                 if (fv != 3) continue;
 
                 MeshTriangle tri;
                 MeshUV muv;
+                MeshVn mvn;
 
                 for (size_t v = 0; v < 3; v++) 
                 {
@@ -122,10 +132,30 @@ private:
                         else if (v == 1) muv.p1 = make_double2(0.0, 0.0);
                         else if (v == 2) muv.p2 = make_double2(0.0, 0.0);
                     }
+
+                    // Vertex normals
+                    int nidx = idx.normal_index;
+                    if (nidx >= 0)
+                    {
+                        double nx = attrib.normals[3 * nidx + 0];
+                        double ny = attrib.normals[3 * nidx + 1];
+                        double nz = attrib.normals[3 * nidx + 2];
+                        double3 n = make_double3(nx, ny, nz);
+                        if (v == 0) mvn.n0 = n;
+                        else if (v == 1) mvn.n1 = n;
+                        else if (v == 2) mvn.n2 = n;
+                    }
+                    else
+                    {
+                        if (v == 0) mvn.n0 = make_double3(0.0, 0.0, 0.0);
+                        else if (v == 1) mvn.n1 = make_double3(0.0, 0.0, 0.0);
+                        else if (v == 2) mvn.n2 = make_double3(0.0, 0.0, 0.0);
+                    }
                 }
 
                 triangles.push_back(tri);
                 uvs.push_back(muv);
+                vns.push_back(mvn);
 
                 index_offset += fv;
             }
