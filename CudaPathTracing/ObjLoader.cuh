@@ -36,10 +36,10 @@ public:
 
 public:
     // Load mesh from a file
-    bool loadFromFile(const std::string& filename, double3& minBoundary, double3& maxBoundary, const double scale, const double rotation = -30.0)
+    bool loadFromFile(const std::string& filename, double3& minBoundary, double3& maxBoundary, const double scale, const double rotation = -30.0, bool usingNV = false)
     {
         triangles.clear();
-        loadMesh(filename, triangles, scale, rotation, minBoundary, maxBoundary);
+        loadMesh(filename, triangles, scale, rotation, minBoundary, maxBoundary, usingNV);
         return !triangles.empty();
     }
 
@@ -54,7 +54,7 @@ public:
     }
 
 private:
-    void loadMesh(const std::string& filename, std::vector<MeshTriangle>& triangles, const double scale, const double rotation, double3& minBoundary, double3& maxBoundary)
+    void loadMesh(const std::string& filename, std::vector<MeshTriangle>& triangles, const double scale, const double rotation, double3& minBoundary, double3& maxBoundary, bool usingNV)
     {
         tinyobj::attrib_t attrib;
         std::vector<tinyobj::shape_t> shapes;
@@ -135,7 +135,7 @@ private:
 
                     // Vertex normals
                     int nidx = idx.normal_index;
-                    if (nidx >= 0)
+                    if (usingNV && nidx >= 0)
                     {
                         double nx = attrib.normals[3 * nidx + 0];
                         double ny = attrib.normals[3 * nidx + 1];

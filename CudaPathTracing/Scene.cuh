@@ -210,13 +210,13 @@ public:
     //    objects.push_back({ "floor", prePtr, afterPtr });
     //}
 
-    void addMeshes(const std::string& fileName, const std::string& texture, double3 position, double rotation, double scale, double3 color, double alphaX, double alphaY, MaterialType type = MaterialType::M_OPAQUE)
+    void addMeshes(const std::string& fileName, const std::string& texture, double3 position, double rotation, double scale, double3 color, double alphaX, double alphaY, MaterialType type = MaterialType::M_OPAQUE, bool usingNV = false)
     {
         unsigned int prePtr, afterPtr;
         cudaMemcpy(&prePtr, device.d_objPtr, sizeof(unsigned int), cudaMemcpyDeviceToHost);
 
         Mesh mesh;
-        mesh.loadFromFile(fileName, minBoundary, maxBoundary, scale, rotation);
+        mesh.loadFromFile(fileName, minBoundary, maxBoundary, scale, rotation, usingNV);
         mesh.transform(position);
         int num = mesh.triangles.size();
 

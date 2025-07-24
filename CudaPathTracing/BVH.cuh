@@ -252,7 +252,6 @@ __global__ inline void constructAABB(Node* internalNodes)
 
     while (cur != NULL || stackPtr != stack)
     {
-
         while (cur != NULL)
         {
             *stackPtr++ = cur;
@@ -276,7 +275,6 @@ __global__ inline void constructAABB(Node* internalNodes)
             cur = cur->childB;
             p_max = mMax(p_max, ++p);
         }
-        //printf("max = %d\n", p_max);
     }
     //printf("max = %d\n", p_max);
 }

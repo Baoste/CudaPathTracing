@@ -20,6 +20,8 @@ renderType{ "RealTimeWithoutPass", "RealTime", "Normal", "Depth" }
     window = nullptr;
     scene = _scene;
     sampleCount = 1;
+    if (width > 1024)
+        selectSampleCount = 1;
 }
 
 Window::~Window()
@@ -236,7 +238,7 @@ void Window::Update()
     ImGui::SliderFloat("alphaY", &Window::alphaY, 0.01f, 1.0f);
     ImGui::Checkbox("isGlass", &Window::glass);
     ImGui::Combo("renderType", &Window::currentType, renderType, IM_ARRAYSIZE(renderType));
-    ImGui::SliderInt("spp", &Window::selectSampleCount, 1, 2048);
+    ImGui::SliderInt("spp", &Window::selectSampleCount, 1, 4096);
     // sigma
     ImGui::SliderFloat("sigmaG", &Window::sigmaG, 1.0f, 16.0f);
     ImGui::SliderFloat("sigmaR", &Window::sigmaR, 0.01f, 10.0f);

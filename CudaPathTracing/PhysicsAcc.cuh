@@ -67,7 +67,7 @@ __host__ __device__ inline double3 pointTriangleDistance(const double3 p, const 
 }
 
 // iter tree for collision
-__host__ __device__ inline double3 traverseIterative(const double3 p, Node* internalNodes, Hittable* objs, double epsilon)
+__device__ inline double3 traverseIterative(const double3 p, Node* internalNodes, Hittable* objs, double epsilon)
 {
     // Allocate traversal stack from thread-local memory,
     // and push NULL to indicate that there are no postponed nodes.
@@ -123,7 +123,7 @@ __host__ __device__ inline double3 traverseIterative(const double3 p, Node* inte
     return offset;
 }
 
-__host__ __device__ inline void collisionDetect(double* X, double* V, int idx, Node* internalNodes, Hittable* d_b)
+__device__ inline void collisionDetect(double* X, double* V, int idx, Node* internalNodes, Hittable* d_b)
 {
     double epsilon = 0.01;
     double friction = 0.3;

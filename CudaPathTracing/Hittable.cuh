@@ -7,7 +7,7 @@
 
 enum ObjectType { NONE, SPHERE, LIGHT, TRIANGLE, BEZIER };
 
-class Sphere
+class __device__ Sphere
 {
 public:
     double3 center;
@@ -15,15 +15,15 @@ public:
     Material material;
 
 public:
-    __host__ __device__ Sphere()
+    __device__ Sphere()
         : center(make_double3(0.0, 0.0, 0.0)), radius(1.0), material(make_double3(1.0, 1.0, 1.0), 0.5, 0.5, MaterialType::M_OPAQUE)
     {
     }
-    __host__ __device__ Sphere(const double3 _center, double _radius, double3 color, double alphaX, double alphaY, MaterialType type = MaterialType::M_OPAQUE)
+    __device__ Sphere(const double3 _center, double _radius, double3 color, double alphaX, double alphaY, MaterialType type = MaterialType::M_OPAQUE)
         : center(_center), radius(_radius), material(color, alphaX, alphaY, type)
     {
     }
-    __host__ __device__ ~Sphere() {}
+    __device__ ~Sphere() {}
     __device__ inline bool hit(const Ray& ray, HitRecord& record, double t_min, double t_max)
     {
         double a = Dot(ray.direction, ray.direction);
@@ -54,7 +54,7 @@ public:
     }
 };
 
-class Triangle
+class __device__ Triangle
 {
 public:
     double3 p0, p1, p2;
@@ -67,7 +67,7 @@ public:
     int width, height, channels;
 
 public:
-    __host__ __device__ Triangle(const double3 _p0, const double3 _p1, const double3 _p2, 
+    __device__ Triangle(const double3 _p0, const double3 _p1, const double3 _p2, 
         const double3 color, double alphaX, double alphaY, MaterialType type = MaterialType::M_OPAQUE,
         const double2 _uv0 = make_double2(0.0, 0.0), const double2 _uv1 = make_double2(0.0, 0.0), const double2 _uv2 = make_double2(0.0, 0.0),
         const double3 _n0 = make_double3(0.0, 0.0, 0.0), const double3 _n1 = make_double3(0.0, 0.0, 0.0), const double3 _n2 = make_double3(0.0, 0.0, 0.0),
@@ -81,7 +81,7 @@ public:
         center = (p0 + p1 + p2) / 3.0;
         normal = Unit(Cross(p1 - p0, p2 - p0));
     }
-    __host__ __device__ ~Triangle() {}
+    __device__ ~Triangle() {}
     __device__ inline bool hit(const Ray& ray, HitRecord& record, double t_min, double t_max)
     {
         const double EPSILON = 1e-8;
@@ -119,6 +119,7 @@ public:
         record.hitPos = ray.at(t);
         record.t = t;
         record.material = &material;
+
         if (n0.x < EPSILON && n0.y < EPSILON && n0.z < EPSILON &&
             n1.x < EPSILON && n1.y < EPSILON && n1.z < EPSILON &&
             n2.x < EPSILON && n2.y < EPSILON && n2.z < EPSILON)
@@ -342,7 +343,7 @@ public:
 //    }
 //};
 
-class Light
+class __device__ Light
 {
 public:
     double3 center;
@@ -355,14 +356,14 @@ public:
     bool visible;
 
 public:
-    __host__ __device__ Light(double3 _center, double _width, double _height, double3 _normal, double3 _color, bool _visible = false)
+    __device__ Light(double3 _center, double _width, double _height, double3 _normal, double3 _color, bool _visible = false)
         : center(_center), width(_width), height(_height), normal(_normal), material(_color, 1.0, 1.0, MaterialType::M_LIGHT), visible(_visible)
     {
         normal = Unit(normal);
         edgeU = fabs(normal.x) > 0.9 ? Unit(Cross(make_double3(0, 1, 0), normal)) : Unit(Cross(make_double3(1, 0, 0), normal));
         edgeV = Unit(Cross(normal, edgeU));
     }
-    __host__ __device__ ~Light() {}
+    __device__ ~Light() {}
     __device__ inline bool hit(const Ray& ray, HitRecord& record, double t_min, double t_max)
     {
         if (!visible)
@@ -398,7 +399,7 @@ public:
 };
 
 
-class Hittable
+class __device__ Hittable
 {
 public:
     ObjectType type;
@@ -412,15 +413,15 @@ public:
     };
 
 public:
-    __host__ __device__ Hittable() : center(make_double3(0.0, 0.0, 0.0)), type(ObjectType::NONE) {}
+    __device__ Hittable() : center(make_double3(0.0, 0.0, 0.0)), type(ObjectType::NONE) {}
     // Sphere constructor
-    __host__ __device__ Hittable(const Sphere& s)
+    __device__ Hittable(const Sphere& s)
         : center(make_double3(s.center.x, s.center.y, s.center.z)), type(ObjectType::SPHERE), sphere(s) 
     {
         aabb = AABB(s.center - make_double3(s.radius, s.radius, s.radius), s.center + make_double3(s.radius, s.radius, s.radius));
     }
     // Light constructor
-    __host__ __device__ Hittable(const Light& l)
+    __device__ Hittable(const Light& l)
         : center(make_double3(l.center.x, l.center.y, l.center.z)), type(ObjectType::LIGHT), light(l)
     {
         double3 N = Unit(l.normal);
@@ -452,7 +453,7 @@ public:
         aabb = AABB(aabbMin, aabbMax).pad();
     }
     // Triangle constructor
-    __host__ __device__ Hittable(const Triangle& t)
+    __device__ Hittable(const Triangle& t)
         : type(ObjectType::TRIANGLE), triangle(t)
     {
         center = (t.p0 + t.p1 + t.p2) / 3.0;
@@ -482,7 +483,7 @@ public:
     //    printf("(%f %f %f)-(%f %f %f)\n", aabb.min.x, aabb.min.y, aabb.min.z, aabb.max.x, aabb.max.y, aabb.max.z);
     //}
 
-    __host__ __device__ ~Hittable() {}
+    __device__ ~Hittable() {}
     __device__ inline bool hit(const Ray& ray, HitRecord& record, double t_min, double t_max)
     {
         switch (type)
