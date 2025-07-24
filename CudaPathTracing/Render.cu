@@ -182,8 +182,8 @@ __global__ void render(uchar4* devPtr, double3* pic, double3* picPrevious, doubl
                 {
                     double3 colorLight = lightRecord.hitColor * record.getFr(ray, direction) * Dot(direction, record.normal) * Dot(-direction, light.normal) / SquaredLength(lightPos - record.hitPos) / pdfLight;
                     radiance += throughput * colorLight;
-                    hasSampleLight = true;
                 }
+                hasSampleLight = true;
             }
 
             // contribution from other refectors
