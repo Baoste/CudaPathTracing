@@ -171,7 +171,7 @@ public:
         int threadsPerBlock = 256;
         int blocks = (size + threadsPerBlock - 1) / threadsPerBlock;
 
-        double3 expand = make_double3(1.0, 1.0, 1.0) * 7.0;
+        double3 expand = make_double3(1.0, 1.0, 1.0);
         double3 sceneMin = minBoundary - expand;
         double3 sceneMax = maxBoundary + expand;
         if (sceneMin.x > sceneMax.x)

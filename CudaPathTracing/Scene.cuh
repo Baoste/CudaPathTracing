@@ -88,6 +88,25 @@ public:
         for (auto mesh : parser.meshes)
             addMeshes(mesh.path, mesh.texture, mesh.center, mesh.rotation, mesh.scale, mesh.color, mesh.alphaX, mesh.alphaY, mesh.type);
 
+        // test
+        //int countPerRow = 8;
+        //double r = 1.0 / countPerRow;
+        //double spacing = 2.0 / countPerRow;
+        //for (int i = 0; i < countPerRow; i++)
+        //{
+        //    for (int j = 0; j < countPerRow; j++)
+        //    {
+        //        for (int k = 0; k < countPerRow; k++)
+        //        {
+        //            double x = -1.0 + r + i * spacing;
+        //            double y = -1.0 + r + j * spacing;
+        //            double z = -1.0 + r + k * spacing;
+        //            double3 center = make_double3(x, y, z);
+        //            addOneSphere(center, r, make_double3(0.8, 0.2, 0.1), 0.5, 0.5);
+        //        }
+        //    }
+        //}
+
         // cloth
         if (parser.hasCloth)
         {

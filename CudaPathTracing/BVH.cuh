@@ -276,7 +276,7 @@ __global__ inline void constructAABB(Node* internalNodes)
             p_max = mMax(p_max, ++p);
         }
     }
-    //printf("max = %d\n", p_max);
+    printf("max = %d\n", p_max);
 }
 
 __device__ inline int traverseIterative(Node* internalNodes, Hittable* objs, const Ray& ray, HitRecord& record, double tMax = INF, double tMin = 0.001)
